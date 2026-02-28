@@ -45,7 +45,7 @@ router.get('/', auth, async (req, res, next) => {
 // Zwraca zdjęcia side questów z informacją o teamie i questcie
 router.get('/gallery', auth, async (req, res, next) => {
   try {
-    const filter = { photoUrl: { $ne: null } };
+    const filter = { photoUrl: { $ne: null }, status: {$ne: 'rejected'}, };
     if (req.query.questId) filter.sideQuest = req.query.questId;
 
     const submissions = await SideQuestSubmission.find(filter)
