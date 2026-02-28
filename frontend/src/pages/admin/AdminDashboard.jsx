@@ -5,7 +5,17 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Target, Camera, Trophy, LogOut, Shield, Images, Sparkles } from 'lucide-react';
+import {
+  Shield,
+  ListChecks,
+  Image,
+  Settings,
+  Users,
+  Loader2,
+  BarChart3,
+  Shield,
+  Sparkles
+} from 'lucide-react';
 import api from '../../api/axios';
 
 export default function AdminDashboard() {
