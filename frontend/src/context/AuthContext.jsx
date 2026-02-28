@@ -34,8 +34,24 @@ export function AuthProvider({ children }) {
     setTeam(null);
   };
 
+  // Update current team's name
+  const updateName = async (newName) => {
+    setLoading(true);
+    try {
+      const { data } = await api.put('/auth/name', { name: newName });
+      if (data.token) localStorage.setItem('token', data.token);
+      if (data.team) {
+        localStorage.setItem('team', JSON.stringify(data.team));
+        setTeam(data.team);
+      }
+      return data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ team, login, register, logout, loading, isAuthenticated: !!team }}>
+    <AuthContext.Provider value={{ team, login, register, logout, updateName, loading, isAuthenticated: !!team }}>
       {children}
     </AuthContext.Provider>
   );

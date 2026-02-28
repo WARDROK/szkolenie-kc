@@ -15,6 +15,8 @@ const signToken = (team) =>
     { expiresIn: '24h' }
   );
 
+
+const authMiddleware = require('../middleware/auth');
 // ── Helper: generate shuffled task queue for a new team ──────
 async function generateTaskQueue() {
   const config = await GameConfig.getConfig();
@@ -104,4 +106,33 @@ router.post('/admin-setup', async (req, res, next) => {
   }
 });
 
+// PUT /api/auth/name – update current team's name (authenticated)
+router.put('/name', authMiddleware, async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required' });
+    const trimmed = String(name).trim();
+
+    // Check uniqueness
+    const existing = await Team.findOne({ name: trimmed });
+    if (existing && String(existing._id) !== String(req.teamId)) {
+      return res.status(409).json({ error: 'Team name already taken' });
+    }
+
+    const team = await Team.findById(req.teamId);
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+
+  team.name = trimmed;
+  await team.save();
+
+  // issue a refreshed token with the new name embedded
+  const token = signToken(team);
+
+  res.json({ token, team: { id: team._id, name: team.name, avatarColor: team.avatarColor, role: team.role } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
+

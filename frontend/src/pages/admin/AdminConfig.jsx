@@ -146,7 +146,7 @@ export default function AdminConfig() {
       </div>
 
       {/* Save button (sticky) */}
-      <div className="sticky bottom-20 mt-6">
+      <div className="sticky bottom-20 mt-[80px]">
         <button
           onClick={handleSave}
           disabled={saving}
