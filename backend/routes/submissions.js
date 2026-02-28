@@ -1,7 +1,8 @@
 // ──────────────────────────────────────────────────────────────
-// Submission routes – photo upload & feed
+// Submission routes – photo upload, feed & gallery
 // POST /api/submissions/:taskId/upload   → upload photo ★ stops timer
-// GET  /api/submissions/feed             → public photo feed
+// GET  /api/submissions/feed             → public chronological feed
+// GET  /api/submissions/gallery          → photos grouped by task
 // ──────────────────────────────────────────────────────────────
 const router = require('express').Router();
 const Submission = require('../models/Submission');
@@ -26,13 +27,11 @@ router.post('/:taskId/upload', auth, upload.single('photo'), async (req, res, ne
       return res.status(400).json({ error: 'No photo uploaded' });
     }
 
-    // ── Stop timer (server-authoritative) ────────────────────
     const now = new Date();
     const elapsedMs = now - submission.riddleOpenedAt;
 
     submission.photoSubmittedAt = now;
     submission.elapsedMs = elapsedMs;
-    // Build a URL the frontend can reach (works locally & in production)
     submission.photoUrl = `/uploads/${req.file.filename}`;
     submission.cloudinaryId = req.file.filename;
     submission.status = 'completed';
@@ -52,7 +51,7 @@ router.post('/:taskId/upload', auth, upload.single('photo'), async (req, res, ne
   }
 });
 
-// Public photo feed – all completed submissions (excludes blocked)
+// Public photo feed – all completed submissions (chronological)
 router.get('/feed', auth, async (_req, res, next) => {
   try {
     const feed = await Submission.find({
@@ -67,6 +66,35 @@ router.get('/feed', auth, async (_req, res, next) => {
       .lean();
 
     res.json(feed);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Side Quest Gallery ────────────────────────────────────────
+// GET /api/submissions/gallery?taskId=<id>
+// Returns photos optionally filtered by task, with task metadata.
+// Each photo includes team name/color, task title, elapsed time.
+router.get('/gallery', auth, async (req, res, next) => {
+  try {
+    const filter = {
+      status: 'completed',
+      photoUrl: { $ne: null },
+      blockedAt: null,
+    };
+
+    if (req.query.taskId) {
+      filter.task = req.query.taskId;
+    }
+
+    const submissions = await Submission.find(filter)
+      .populate('team', 'name avatarColor')
+      .populate('task', 'title locationHint order')
+      .sort('task.order -photoSubmittedAt')
+      .limit(200)
+      .lean();
+
+    res.json(submissions);
   } catch (err) {
     next(err);
   }
