@@ -32,18 +32,29 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
 
   useEffect(() => {
     // Dynamically load Leaflet CSS + JS if not already loaded
-    if (!window.L) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      document.head.appendChild(link);
+    try {
+      if (!window.L) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
 
-      const script = document.createElement('script');
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-      script.onload = () => initMap();
-      document.head.appendChild(script);
-    } else {
-      initMap();
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => {
+          try { initMap(); } catch (err) { console.error('initMap error after script load', err); }
+        };
+        script.onerror = (e) => {
+          // eslint-disable-next-line no-console
+          console.error('Failed to load Leaflet script', e);
+        };
+        document.head.appendChild(script);
+      } else {
+        try { initMap(); } catch (err) { console.error('initMap error', err); }
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('TaskMap setup failed', err);
     }
 
     return () => {
@@ -95,17 +106,20 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
   }
 
   function updateMarkers() {
-    const L = window.L;
-    const map = mapInstanceRef.current;
-    if (!L || !map) return;
+    try {
+      const L = window.L;
+      const map = mapInstanceRef.current;
+      if (!L || !map) return;
 
-    // Clear existing markers
-    markersRef.current.forEach((m) => map.removeLayer(m));
-    markersRef.current = [];
+      // Clear existing markers
+      markersRef.current.forEach((m) => map.removeLayer(m));
+      markersRef.current = [];
 
-    const tasksWithCoords = tasks.filter((t) => t.lat && t.lng);
+      const taskList = Array.isArray(tasks) ? tasks : [];
+      const tasksWithCoords = taskList.filter((t) => t && t.lat && t.lng);
 
     tasksWithCoords.forEach((task) => {
+      try {
       const color = STATUS_COLORS[task.status] || STATUS_COLORS['not-started'];
       const number = task.queuePosition || task.order || '?';
 
@@ -170,12 +184,22 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
       });
 
       markersRef.current.push(marker);
+      } catch (err) {
+        // swallow per-marker errors so one bad task doesn't break the whole map
+        // eslint-disable-next-line no-console
+        console.error('Failed to create marker for task', task?._id, err);
+      }
     });
 
-    // Fit bounds if we have markers
-    if (tasksWithCoords.length > 1) {
-      const bounds = L.latLngBounds(tasksWithCoords.map((t) => [t.lat, t.lng]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+      // Fit bounds if we have markers
+      if (tasksWithCoords.length > 1) {
+        const bounds = L.latLngBounds(tasksWithCoords.map((t) => [t.lat, t.lng]));
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+      }
+    } catch (err) {
+      // Catch any unexpected errors during marker update (effects are not caught by ErrorBoundary)
+      // eslint-disable-next-line no-console
+      console.error('updateMarkers failed', err);
     }
   }
 

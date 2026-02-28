@@ -14,11 +14,16 @@ import {
 } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { PlusCircle } from 'lucide-react';
 
 export default function AdminTeams() {
   const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [count, setCount] = useState(10);
+  const [creating, setCreating] = useState(false);
+  const [createdResults, setCreatedResults] = useState(null);
 
   const loadTeams = () => {
     api.get('/admin/teams')
@@ -27,6 +32,22 @@ export default function AdminTeams() {
   };
 
   useEffect(() => { loadTeams(); }, []);
+
+  const handleCreate = async () => {
+    try {
+      setCreating(true);
+      const { data } = await api.post('/admin/teams/generate', { count });
+      setCreatedResults(data);
+      toast.success(`Created ${data.created.length} teams`);
+      loadTeams();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to create teams');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  // PDF download now uses /admin/teams/print with created entries after generation
 
   const handleReshuffle = async (id, name) => {
     if (!confirm(`Reshuffle task queue for "${name}"? Their task order will be randomized.`)) return;
@@ -60,6 +81,13 @@ export default function AdminTeams() {
         <Users className="text-neon-green" size={20} />
         <h1 className="text-xl font-black text-white">Teams</h1>
         <span className="text-xs text-gray-500 ml-auto">{teams.length} teams</span>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="ml-3 px-3 py-2 rounded-lg bg-neon-cyan/10 text-neon-cyan hover:bg-neon-cyan/20 flex items-center gap-2"
+          title="Add teams"
+        >
+          <PlusCircle size={14} /> Add Teams
+        </button>
       </div>
 
       {loading ? (
@@ -121,6 +149,84 @@ export default function AdminTeams() {
               )}
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Add Teams Modal */}
+      {showAdd && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="w-full max-w-2xl bg-dark-900 rounded-2xl p-6 neon-border">
+            <div className="flex items-center gap-2 mb-4">
+              <PlusCircle className="text-neon-green" size={18} />
+              <h2 className="text-lg font-bold">Add Teams</h2>
+              <div className="ml-auto text-sm text-gray-400">Passwords are generated automatically</div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-gray-400">Number of teams to generate</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={count}
+                  onChange={(e) => setCount(parseInt(e.target.value || '0', 10))}
+                  className="w-32 mt-2 p-2 rounded-lg bg-dark-800 text-white text-sm"
+                />
+              </div>
+
+              {/* CSV upload removed — use manual textarea only */}
+
+              {createdResults && (
+                <div className="bg-dark-800 p-3 rounded-lg text-sm">
+                  <div className="font-semibold mb-2">Created</div>
+                  {createdResults.created.map((c) => (
+                    <div key={c.id} className="flex items-center justify-between py-1 border-b border-white/5">
+                      <div>{c.name}</div>
+                      <div className="text-xs text-gray-400">{c.password}</div>
+                    </div>
+                  ))}
+                  {createdResults.errors?.length > 0 && (
+                    <div className="mt-2 text-xs text-neon-pink">
+                      Errors:
+                      {createdResults.errors.map((e, i) => (
+                        <div key={i}>{e.name || '<empty>'}: {e.error}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 mt-4">
+                <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-neon-cyan rounded-lg font-semibold">
+                  {creating ? 'Creating...' : 'Create Teams'}
+                </button>
+                {createdResults && createdResults.created?.length > 0 && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const resp = await api.post('/admin/teams/print', { entries: createdResults.created }, { responseType: 'blob' });
+                        const url = window.URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }));
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', 'team-passwords.pdf');
+                        document.body.appendChild(link);
+                        link.click();
+                        link.parentNode.removeChild(link);
+                      } catch (err) {
+                        toast.error(err.response?.data?.error || 'Failed to generate PDF');
+                      }
+                    }}
+                    className="px-4 py-2 bg-neon-gold text-dark-900 rounded-lg font-semibold"
+                  >
+                    Download PDF
+                  </button>
+                )}
+                <button onClick={() => { setShowAdd(false); setCreatedResults(null); }} className="px-4 py-2 bg-dark-800 rounded-lg">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
