@@ -53,6 +53,7 @@ services:
       - backend
     environment:
       VITE_API_URL: /api
+      DOCKER: "true"
     volumes:
       - ./frontend:/app
       - /app/node_modules

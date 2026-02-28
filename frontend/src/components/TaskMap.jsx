@@ -87,17 +87,20 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
   }
 
   function updateMarkers() {
-    const L = window.L;
-    const map = mapInstanceRef.current;
-    if (!L || !map) return;
+    try {
+      const L = window.L;
+      const map = mapInstanceRef.current;
+      if (!L || !map) return;
 
-    // Clear existing markers
-    markersRef.current.forEach((m) => map.removeLayer(m));
-    markersRef.current = [];
+      // Clear existing markers
+      markersRef.current.forEach((m) => map.removeLayer(m));
+      markersRef.current = [];
 
-    const tasksWithCoords = tasks.filter((t) => t.lat && t.lng);
+      const taskList = Array.isArray(tasks) ? tasks : [];
+      const tasksWithCoords = taskList.filter((t) => t && Number.isFinite(t.lat) && Number.isFinite(t.lng));
 
     tasksWithCoords.forEach((task) => {
+      try {
       const color = STATUS_COLORS[task.status] || STATUS_COLORS['not-started'];
       const number = task.queuePosition || task.order || '?';
 
@@ -121,7 +124,9 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
           <div style="font-size: 14px; font-weight: 800; margin-bottom: 6px;">${task.title}</div>
           <div style="font-size: 11px; color: #9ca3af; margin-bottom: 8px;">${task.locationHint}</div>
           <button 
-            onclick="window.__taskMapClick__('${task._id}')" 
+            type="button"
+            class="task-popup-btn"
+            data-task-id="${task._id}"
             style="width: 100%; padding: 8px; border-radius: 8px; border: none; background: ${color}; color: #0a0a0f; font-weight: 700; font-size: 12px; cursor: pointer;">
             ${task.status === 'completed' ? 'View Details' : task.status === 'in-progress' ? 'Continue' : 'Go to Task'}
           </button>
@@ -134,25 +139,60 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
         maxWidth: 220,
       });
 
+      // Attach click handler when popup opens so we can call the React-provided onTaskClick
+      marker.on('popupopen', (e) => {
+        try {
+          const popupEl = e.popup?.getElement();
+          if (!popupEl) return;
+          const btn = popupEl.querySelector('.task-popup-btn');
+          if (!btn) return;
+          const id = btn.getAttribute('data-task-id');
+          btn.onclick = () => {
+            try {
+              if (onTaskClick) onTaskClick(id);
+            } catch (err) {
+              // swallow errors from user callback to avoid breaking the map UI
+              // but surface to console for debugging
+              // eslint-disable-next-line no-console
+              console.error('onTaskClick handler threw:', err);
+            }
+          };
+        } catch (err) {
+          // defensive: ensure popup DOM interactions don't throw up to React
+          // eslint-disable-next-line no-console
+          console.error('Failed to attach popup button handler', err);
+        }
+      });
+
       markersRef.current.push(marker);
+      } catch (err) {
+        // swallow per-marker errors so one bad task doesn't break the whole map
+        // eslint-disable-next-line no-console
+        console.error('Failed to create marker for task', task?._id, err);
+      }
     });
 
-    // Fit bounds if we have markers
-    if (tasksWithCoords.length > 1) {
-      const bounds = L.latLngBounds(tasksWithCoords.map((t) => [t.lat, t.lng]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+      // Fit bounds if we have markers
+      if (tasksWithCoords.length > 1) {
+        const bounds = L.latLngBounds(tasksWithCoords.map((t) => [t.lat, t.lng]));
+        if (bounds.isValid()) {
+          try {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+          } catch {
+            // fitBounds can throw if the map container has zero dimensions (not yet visible)
+          }
+        }
+      } else if (tasksWithCoords.length === 1) {
+        map.setView([tasksWithCoords[0].lat, tasksWithCoords[0].lng], config?.mapZoom || 17);
+      }
+    } catch (err) {
+      // Catch any unexpected errors during marker update (effects are not caught by ErrorBoundary)
+      // eslint-disable-next-line no-console
+      console.error('updateMarkers failed', err);
     }
   }
 
-  // Global click handler for popup buttons
-  useEffect(() => {
-    window.__taskMapClick__ = (taskId) => {
-      if (onTaskClick) onTaskClick(taskId);
-    };
-    return () => {
-      delete window.__taskMapClick__;
-    };
-  }, [onTaskClick]);
+  // ...popup handlers are attached when popups open
 
   return (
     <>

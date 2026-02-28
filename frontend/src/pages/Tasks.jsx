@@ -5,6 +5,7 @@ import { MapPin, CheckCircle2, Clock, Loader2, List, Map as MapIcon } from 'luci
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import TaskMap from '../components/TaskMap';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 const statusColors = {
   'not-started': 'border-white/5',
@@ -109,12 +110,14 @@ export default function Tasks() {
           <Loader2 className="animate-spin text-neon-cyan" size={32} />
         </div>
       ) : view === 'map' ? (
-        <div className="flex-1 min-h-[400px] relative">
-          <TaskMap
-            tasks={tasks}
-            config={config}
-            onTaskClick={(taskId) => navigate(`/task/${taskId}`)}
-          />
+        <div className="flex-1 min-h-[60vh] relative z-0">
+          <ErrorBoundary>
+            <TaskMap
+              tasks={tasks}
+              config={config}
+              onTaskClick={(taskId) => navigate(`/task/${taskId}`)}
+            />
+          </ErrorBoundary>
         </div>
       ) : (
         <div className="px-4 pb-4 max-w-lg mx-auto w-full">

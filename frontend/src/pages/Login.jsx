@@ -8,8 +8,7 @@ import toast from 'react-hot-toast';
 export default function Login() {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
-  const { login, register, loading } = useAuth();
+  const { login, loading } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -19,14 +18,8 @@ export default function Login() {
       return;
     }
     try {
-      let result;
-      if (isRegister) {
-        result = await register(name.trim(), password);
-        toast.success('Team created!');
-      } else {
-        result = await login(name.trim(), password);
-        toast.success('Welcome back!');
-      }
+  const result = await login(name.trim(), password);
+  toast.success('Welcome back!');
       // Redirect admin to admin panel, teams to tasks
       if (result?.team?.role === 'admin') {
         navigate('/admin', { replace: true });
@@ -105,21 +98,10 @@ export default function Login() {
             className="w-full py-3.5 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-neon-cyan to-cyan-400 text-dark-900 shadow-neon hover:shadow-neon transition-shadow disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <Zap size={16} />
-            {loading ? 'Loading...' : isRegister ? 'Create Team' : 'Enter the Hunt'}
+            {loading ? 'Loading...' : 'Enter the Hunt'}
           </motion.button>
         </form>
-
-        {/* Toggle register/login */}
-        <p className="text-center mt-5 text-sm text-gray-500">
-          {isRegister ? 'Already have a team?' : "Don't have a team?"}{' '}
-          <button
-            type="button"
-            onClick={() => setIsRegister(!isRegister)}
-            className="text-neon-cyan font-semibold hover:underline"
-          >
-            {isRegister ? 'Sign in' : 'Register'}
-          </button>
-        </p>
+        
       </motion.div>
     </div>
   );
