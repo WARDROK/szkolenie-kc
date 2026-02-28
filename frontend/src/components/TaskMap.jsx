@@ -3,6 +3,8 @@
 // Uses OpenStreetMap tiles (free, no API key needed)
 // ──────────────────────────────────────────────────────────────
 import { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const STATUS_COLORS = {
   'not-started': '#6b7280',  // gray
@@ -31,30 +33,9 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
   const markersRef = useRef([]);
 
   useEffect(() => {
-    // Dynamically load Leaflet CSS + JS if not already loaded
-    try {
-      if (!window.L) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(link);
-
-        const script = document.createElement('script');
-        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        script.onload = () => {
-          try { initMap(); } catch (err) { console.error('initMap error after script load', err); }
-        };
-        script.onerror = (e) => {
-          // eslint-disable-next-line no-console
-          console.error('Failed to load Leaflet script', e);
-        };
-        document.head.appendChild(script);
-      } else {
-        try { initMap(); } catch (err) { console.error('initMap error', err); }
-      }
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('TaskMap setup failed', err);
+    // Leaflet is imported from npm, initialize map now (guard for SSR)
+    if (typeof window !== 'undefined') {
+      initMap();
     }
 
     return () => {
