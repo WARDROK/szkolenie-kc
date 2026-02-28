@@ -21,7 +21,8 @@ export default function AdminTeams() {
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [count, setCount] = useState(10);
+  // keep as string so the input can be emptied by the user
+  const [count, setCount] = useState('10');
   const [creating, setCreating] = useState(false);
   const [createdResults, setCreatedResults] = useState(null);
 
@@ -36,7 +37,9 @@ export default function AdminTeams() {
   const handleCreate = async () => {
     try {
       setCreating(true);
-      const { data } = await api.post('/admin/teams/generate', { count });
+      const parsed = parseInt(String(count || '').trim(), 10);
+      if (!parsed || parsed <= 0) { toast.error('Enter a valid number of teams'); setCreating(false); return; }
+      const { data } = await api.post('/admin/teams/generate', { count: parsed });
       setCreatedResults(data);
       toast.success(`Created ${data.created.length} teams`);
       loadTeams();
@@ -159,20 +162,21 @@ export default function AdminTeams() {
             <div className="flex items-center gap-2 mb-4">
               <PlusCircle className="text-neon-green" size={18} />
               <h2 className="text-lg font-bold">Add Teams</h2>
-              <div className="ml-auto text-sm text-gray-400">Passwords are generated automatically</div>
             </div>
 
             <div className="space-y-3">
-              <div>
-                <label className="text-sm text-gray-400">Number of teams to generate</label>
-                <input
-                  type="number"
-                  min={1}
-                  value={count}
-                  onChange={(e) => setCount(parseInt(e.target.value || '0', 10))}
-                  className="w-32 mt-2 p-2 rounded-lg bg-dark-800 text-white text-sm"
-                />
-              </div>
+              {!createdResults && (
+                <div>
+                  <label className="text-sm text-gray-400">Number of teams to generate</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={count}
+                    onChange={(e) => setCount(parseInt(e.target.value || '0', 10))}
+                    className="w-32 mt-2 p-2 rounded-lg bg-dark-800 text-white text-sm"
+                  />
+                </div>
+              )}
 
               {/* CSV upload removed — use manual textarea only */}
 
@@ -197,9 +201,12 @@ export default function AdminTeams() {
               )}
 
               <div className="flex items-center gap-2 mt-4">
-                <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-neon-cyan rounded-lg font-semibold">
-                  {creating ? 'Creating...' : 'Create Teams'}
-                </button>
+                {!createdResults && (
+                  <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-neon-cyan rounded-lg font-semibold">
+                    {creating ? 'Creating...' : 'Create Teams'}
+                  </button>
+                )}
+
                 {createdResults && createdResults.created?.length > 0 && (
                   <button
                     onClick={async () => {
@@ -221,8 +228,9 @@ export default function AdminTeams() {
                     Download PDF
                   </button>
                 )}
+
                 <button onClick={() => { setShowAdd(false); setCreatedResults(null); }} className="px-4 py-2 bg-dark-800 rounded-lg">
-                  Cancel
+                  Close
                 </button>
               </div>
             </div>
