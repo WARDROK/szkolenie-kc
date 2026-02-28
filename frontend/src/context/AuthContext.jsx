@@ -24,9 +24,14 @@ export function AuthProvider({ children }) {
   };
 
   const register = async (name, password) => {
+    // Registration disabled – admin creates teams. Kept for API compatibility.
+    throw new Error('Self-registration is disabled. Ask the admin to create your team.');
+  };
+
+  const updateProfile = async (name, password) => {
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/register', { name, password });
+      const { data } = await api.put('/auth/profile', { name, password });
       localStorage.setItem('token', data.token);
       localStorage.setItem('team', JSON.stringify(data.team));
       setTeam(data.team);
@@ -43,7 +48,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ team, login, register, logout, loading, isAuthenticated: !!team }}>
+    <AuthContext.Provider value={{ team, login, register, updateProfile, logout, loading, isAuthenticated: !!team }}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,10 +12,14 @@ import AdminTasks from './pages/admin/AdminTasks';
 import AdminPhotos from './pages/admin/AdminPhotos';
 import AdminConfig from './pages/admin/AdminConfig';
 import AdminTeams from './pages/admin/AdminTeams';
+import Profile from './pages/Profile';
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  const { isAuthenticated, team } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  // Admin should not access team routes – redirect to admin panel
+  if (team?.role === 'admin') return <Navigate to="/admin" replace />;
+  return children;
 }
 
 function AdminRoute({ children }) {
@@ -23,6 +27,13 @@ function AdminRoute({ children }) {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (team?.role !== 'admin') return <Navigate to="/" replace />;
   return children;
+}
+
+function CatchAll() {
+  const { isAuthenticated, team } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (team?.role === 'admin') return <Navigate to="/admin" replace />;
+  return <Navigate to="/" replace />;
 }
 
 export default function App() {
@@ -55,6 +66,7 @@ export default function App() {
           <Route path="task/:id" element={<TaskDetail />} />
           <Route path="feed" element={<Feed />} />
           <Route path="leaderboard" element={<Leaderboard />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
 
         {/* Admin routes */}
@@ -64,9 +76,10 @@ export default function App() {
           <Route path="photos" element={<AdminPhotos />} />
           <Route path="config" element={<AdminConfig />} />
           <Route path="teams" element={<AdminTeams />} />
+          <Route path="leaderboard" element={<Leaderboard />} />
         </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<CatchAll />} />
       </Routes>
     </>
   );

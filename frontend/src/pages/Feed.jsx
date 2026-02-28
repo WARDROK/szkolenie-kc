@@ -37,7 +37,7 @@ export default function Feed() {
       {/* Header */}
       <div className="mb-6 flex items-center gap-2">
         <Camera className="text-neon-pink" size={22} />
-        <h1 className="text-xl font-black text-white">Photo Feed</h1>
+        <h1 className="text-xl font-black text-white">Your Photos</h1>
       </div>
 
       {loading ? (

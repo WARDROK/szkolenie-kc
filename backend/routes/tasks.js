@@ -8,6 +8,7 @@ const router = require('express').Router();
 const Task = require('../models/Task');
 const Team = require('../models/Team');
 const Submission = require('../models/Submission');
+const GameConfig = require('../models/GameConfig');
 const auth = require('../middleware/auth');
 
 // List all active tasks in this team's queue order
@@ -42,13 +43,29 @@ router.get('/', auth, async (req, res, next) => {
       orderedTasks = allTasks.sort((a, b) => a.order - b.order);
     }
 
+    const config = await GameConfig.getConfig();
+    const locDelay = (config.locationRevealDelaySec || 360) * 1000;
+
     const enriched = orderedTasks.map((t, index) => {
       const sub = subMap[t._id.toString()];
+      const taskObj = { ...t };
+
+      // Teams should NOT see lat/lng until the location reveal delay has passed
+      if (req.role !== 'admin') {
+        const started = sub?.riddleOpenedAt;
+        const locationRevealed = started && (Date.now() - new Date(started).getTime() >= locDelay);
+        if (!locationRevealed) {
+          delete taskObj.lat;
+          delete taskObj.lng;
+        }
+      }
+
       return {
-        ...t,
+        ...taskObj,
         queuePosition: index + 1,  // team-specific order number
         status: sub ? sub.status : 'not-started',
         elapsedMs: sub?.elapsedMs || null,
+        riddleOpenedAt: sub?.riddleOpenedAt || null,
       };
     });
 
@@ -70,8 +87,22 @@ router.get('/:id', auth, async (req, res, next) => {
       task: task._id,
     });
 
+    const config = await GameConfig.getConfig();
+    const locDelay = (config.locationRevealDelaySec || 360) * 1000;
+    const taskObj = task.toObject();
+
+    // Strip location for teams until the reveal delay has passed
+    if (req.role !== 'admin') {
+      const started = submission?.riddleOpenedAt;
+      const locationRevealed = started && (Date.now() - new Date(started).getTime() >= locDelay);
+      if (!locationRevealed) {
+        delete taskObj.lat;
+        delete taskObj.lng;
+      }
+    }
+
     res.json({
-      task: task.toObject(),
+      task: taskObj,
       submission: submission
         ? {
             id: submission._id,
@@ -102,8 +133,15 @@ router.post('/:id/start', auth, async (req, res, next) => {
 
     if (submission) {
       // Already started – just return current state
+      const taskObj = task.toObject();
+      if (req.role !== 'admin') {
+        const cfg = await GameConfig.getConfig();
+        const delay = (cfg.locationRevealDelaySec || 360) * 1000;
+        const revealed = submission.riddleOpenedAt && (Date.now() - new Date(submission.riddleOpenedAt).getTime() >= delay);
+        if (!revealed) { delete taskObj.lat; delete taskObj.lng; }
+      }
       return res.json({
-        task: task.toObject(),
+        task: taskObj,
         submission: {
           id: submission._id,
           riddleOpenedAt: submission.riddleOpenedAt,
@@ -121,8 +159,15 @@ router.post('/:id/start', auth, async (req, res, next) => {
       riddleOpenedAt: new Date(),
     });
 
+    const newTaskObj = task.toObject();
+    // Brand new start – location is never revealed at time 0
+    if (req.role !== 'admin') {
+      delete newTaskObj.lat;
+      delete newTaskObj.lng;
+    }
+
     res.status(201).json({
-      task: task.toObject(),
+      task: newTaskObj,
       submission: {
         id: submission._id,
         riddleOpenedAt: submission.riddleOpenedAt,

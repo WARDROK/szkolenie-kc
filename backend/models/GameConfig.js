@@ -45,6 +45,20 @@ const gameConfigSchema = new mongoose.Schema(
     // ── Task Queue ────────────────────────────────────────────
     // If true, each team gets a shuffled order of tasks
     shuffleTaskOrder: { type: Boolean, default: true },
+
+    // ── Timed Reveals (for teams) ─────────────────────────────
+    // After starting a task: hint reveals after X seconds, location after Y seconds
+    hintRevealDelaySec: { type: Number, default: 180 },      // 3 minutes
+    locationRevealDelaySec: { type: Number, default: 360 },   // 6 minutes
+
+    // ── Game Boundary Circle ──────────────────────────────────
+    // Drawn on the team map to show the play area
+    boundaryRadiusMeters: { type: Number, default: 500 },     // radius in meters
+
+    // ── Game End ──────────────────────────────────────────────
+    // Admin can set a specific end time or duration
+    gameEndTime: { type: Date, default: null },               // null = no auto-end
+    gameDurationMinutes: { type: Number, default: 0 },        // 0 = unlimited
   },
   { timestamps: true }
 );

@@ -1,5 +1,6 @@
 // ──────────────────────────────────────────────────────────────
-// Admin Task Manager – CRUD with confirmation dialogs
+// Admin Task Manager – CRUD with confirmation dialogs + map
+// Admin can click on map to set task lat/lng
 // ──────────────────────────────────────────────────────────────
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -15,9 +16,13 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
+  Map as MapIcon,
+  List,
 } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import TaskMap from '../../components/TaskMap';
+import { ConfirmModal } from '../../components/ConfirmModal';
 
 const emptyTask = {
   title: '',
@@ -32,70 +37,44 @@ const emptyTask = {
   isActive: true,
 };
 
-// ── Confirmation Modal ────────────────────────────────────────
-function ConfirmModal({ open, title, message, confirmLabel, confirmColor, onConfirm, onCancel, loading }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="relative glass rounded-2xl p-6 max-w-sm w-full border border-white/10 z-10"
-      >
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-            <AlertTriangle size={20} className="text-yellow-400" />
-          </div>
-          <h3 className="text-white font-bold text-base">{title}</h3>
-        </div>
-        <p className="text-gray-400 text-sm mb-6">{message}</p>
-        <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-bold border border-white/10 text-gray-400 hover:bg-white/5 transition-colors disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 ${
-              confirmColor === 'red'
-                ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
-                : 'bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/30 hover:bg-neon-cyan/30'
-            }`}
-          >
-            {loading && <Loader2 className="animate-spin" size={14} />}
-            {confirmLabel}
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
+// ── Confirmation Modal ── imported from ConfirmModal.jsx ──────
 
 export default function AdminTasks() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
+  const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | 'new' | task._id
   const [form, setForm] = useState({ ...emptyTask });
   const [originalForm, setOriginalForm] = useState({ ...emptyTask });
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState('list'); // 'list' | 'map'
 
   // Confirmation modal state
   const [confirm, setConfirm] = useState({ open: false, type: null, taskId: null });
 
   const loadTasks = useCallback(() => {
-    api.get('/admin/tasks')
-      .then(({ data }) => { setTasks(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      api.get('/admin/tasks'),
+      api.get('/admin/config'),
+    ]).then(([tasksRes, configRes]) => {
+      setTasks(tasksRes.data);
+      setConfig(configRes.data);
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, []);
 
   useEffect(() => { loadTasks(); }, [loadTasks]);
+
+  // ── Map click handler: set lat/lng on editing task ─────────
+  const handleMapClick = ({ lat, lng }) => {
+    if (editing) {
+      setForm((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
+      toast.success(`Location set: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
+    } else {
+      toast('Click a task first, then click the map to set its location', { icon: '📍' });
+    }
+  };
 
   // ── Open edit panel by clicking a task row ─────────────────
   const handleClickTask = (task) => {
@@ -213,7 +192,7 @@ export default function AdminTasks() {
   return (
     <div className="max-w-lg mx-auto px-4 pt-6 pb-24">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/admin')} className="text-gray-400 hover:text-white">
             <ArrowLeft size={20} />
@@ -229,6 +208,53 @@ export default function AdminTasks() {
           Add Task
         </button>
       </div>
+
+      {/* View toggle: List / Map */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setView('list')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            view === 'list'
+              ? 'bg-neon-cyan/20 text-neon-cyan neon-border'
+              : 'glass text-gray-400 hover:text-white'
+          }`}
+        >
+          <List size={14} /> List
+        </button>
+        <button
+          onClick={() => setView('map')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            view === 'map'
+              ? 'bg-neon-cyan/20 text-neon-cyan neon-border'
+              : 'glass text-gray-400 hover:text-white'
+          }`}
+        >
+          <MapIcon size={14} /> Map
+        </button>
+        {editing && view === 'map' && (
+          <span className="text-[10px] text-neon-gold self-center ml-2 animate-pulse">
+            📍 Editing "{form.title || 'New Task'}" — click map to set location or type coordinates below
+          </span>
+        )}
+        {!editing && view === 'map' && (
+          <span className="text-[10px] text-gray-500 self-center ml-2">
+            Select a task below, then click map to set location
+          </span>
+        )}
+      </div>
+
+      {/* Map view */}
+      {view === 'map' && config && (
+        <div className="mb-6 rounded-2xl overflow-hidden neon-border" style={{ height: 450 }}>
+          <TaskMap
+            tasks={tasks}
+            config={config}
+            onTaskClick={() => {}}
+            onMapClick={handleMapClick}
+            adminMode
+          />
+        </div>
+      )}
 
       {/* New task form (shown at top) */}
       <AnimatePresence>
