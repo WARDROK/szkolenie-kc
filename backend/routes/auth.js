@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const Team = require('../models/Team');
 const Task = require('../models/Task');
 const GameConfig = require('../models/GameConfig');
+const auth = require('../middleware/auth');
 
 const signToken = (team) =>
   jwt.sign(
@@ -33,10 +34,53 @@ async function generateTaskQueue() {
   return ids;
 }
 
-// POST /api/auth/register
-// Registration removed: always return 410 Gone. Team creation must be done by admins via /api/admin
+// POST /api/auth/register – DISABLED (admin creates teams via /api/admin/teams)
 router.post('/register', async (_req, res) => {
-  res.status(410).json({ error: 'Registration has been disabled. Contact an admin to create teams.' });
+  return res.status(403).json({ error: 'Self-registration is disabled. Ask the admin to create your team.' });
+});
+
+// PUT /api/auth/profile – one-time team profile edit (name + password)
+router.put('/profile', auth, async (req, res, next) => {
+  try {
+    const team = await Team.findById(req.teamId);
+    if (!team) return res.status(404).json({ error: 'Team not found' });
+    if (team.role === 'admin') return res.status(403).json({ error: 'Admin cannot edit profile this way' });
+    if (team.profileEdited) {
+      return res.status(403).json({ error: 'Profile can only be edited once' });
+    }
+
+    const { name, password } = req.body;
+    if (!name && !password) {
+      return res.status(400).json({ error: 'Provide name or password to update' });
+    }
+
+    if (name && name !== team.name) {
+      const exists = await Team.findOne({ name });
+      if (exists) return res.status(409).json({ error: 'Team name already taken' });
+      team.name = name;
+    }
+    if (password) {
+      if (password.length < 4) return res.status(400).json({ error: 'Password must be at least 4 characters' });
+      team.password = password; // pre-save hook will hash it
+    }
+
+    team.profileEdited = true;
+    await team.save();
+
+    const token = signToken(team);
+    res.json({
+      token,
+      team: {
+        id: team._id,
+        name: team.name,
+        avatarColor: team.avatarColor,
+        role: team.role,
+        profileEdited: team.profileEdited,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /api/auth/login
@@ -57,6 +101,7 @@ router.post('/login', async (req, res, next) => {
         name: team.name,
         avatarColor: team.avatarColor,
         role: team.role,
+        profileEdited: team.profileEdited || false,
       },
     });
   } catch (err) {

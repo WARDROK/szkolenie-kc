@@ -110,14 +110,14 @@ export default function Tasks() {
           <Loader2 className="animate-spin text-neon-cyan" size={32} />
         </div>
       ) : view === 'map' ? (
-        <div className="flex-1 min-h-[400px] relative">
-          <ErrorBoundary>
+        <div className="max-w-lg mx-auto w-full px-4 pb-4">
+          <div className="rounded-2xl overflow-hidden neon-border" style={{ height: 450 }}>
             <TaskMap
               tasks={tasks}
               config={config}
               onTaskClick={(taskId) => navigate(`/task/${taskId}`)}
             />
-          </ErrorBoundary>
+          </div>
         </div>
       ) : (
         <div className="px-4 pb-4 max-w-lg mx-auto w-full">

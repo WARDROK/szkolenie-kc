@@ -1,32 +1,25 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Target, Camera, Trophy, LogOut, Shield } from 'lucide-react';
+import { Target, Camera, Trophy, LogOut, Shield, UserCog } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const teamTabs = [
   { to: '/', icon: Target, label: 'Tasks' },
   { to: '/feed', icon: Camera, label: 'Feed' },
   { to: '/leaderboard', icon: Trophy, label: 'Ranks' },
+  { to: '/profile', icon: UserCog, label: 'Profile' },
 ];
 
 const adminTabs = [
   { to: '/admin', icon: Shield, label: 'Admin' },
-  { to: '/feed', icon: Camera, label: 'Feed' },
-  { to: '/leaderboard', icon: Trophy, label: 'Ranks' },
+  { to: '/admin/leaderboard', icon: Trophy, label: 'Ranks' },
 ];
 
 export default function BottomNav() {
   const { logout, team } = useAuth();
   const location = useLocation();
   const isAdmin = team?.role === 'admin';
-  const isOnAdminPage = location.pathname.startsWith('/admin');
 
-  // Show admin tabs when admin is on admin pages, team tabs otherwise
-  const tabs = isAdmin
-    ? [
-        ...teamTabs,
-        { to: '/admin', icon: Shield, label: 'Admin' },
-      ]
-    : teamTabs;
+  const tabs = isAdmin ? adminTabs : teamTabs;
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 glass-strong safe-area-bottom">
@@ -35,7 +28,7 @@ export default function BottomNav() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/' || to === '/admin'}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-all duration-200 ${
                 isActive

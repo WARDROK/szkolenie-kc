@@ -5,7 +5,7 @@ const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [team, setTeam] = useState(() => {
-    const saved = localStorage.getItem('team');
+    const saved = sessionStorage.getItem('team');
     return saved ? JSON.parse(saved) : null;
   });
   const [loading, setLoading] = useState(false);
@@ -14,8 +14,8 @@ export function AuthProvider({ children }) {
     setLoading(true);
     try {
       const { data } = await api.post('/auth/login', { name, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('team', JSON.stringify(data.team));
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('team', JSON.stringify(data.team));
       setTeam(data.team);
       return data;
     } finally {
@@ -23,14 +23,27 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Registration removed: frontend no longer supports creating teams.
-  const register = async () => {
-    throw new Error('Registration disabled');
+  const register = async (name, password) => {
+    // Registration disabled – admin creates teams. Kept for API compatibility.
+    throw new Error('Self-registration is disabled. Ask the admin to create your team.');
+  };
+
+  const updateProfile = async (name, password) => {
+    setLoading(true);
+    try {
+      const { data } = await api.put('/auth/profile', { name, password });
+      sessionStorage.setItem('token', data.token);
+      sessionStorage.setItem('team', JSON.stringify(data.team));
+      setTeam(data.team);
+      return data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('team');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('team');
     setTeam(null);
   };
 
@@ -51,7 +64,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ team, login, register, logout, updateName, loading, isAuthenticated: !!team }}>
+    <AuthContext.Provider value={{ team, login, register, updateProfile, logout, loading, isAuthenticated: !!team }}>
       {children}
     </AuthContext.Provider>
   );

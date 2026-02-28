@@ -16,6 +16,10 @@ const FIELDS = [
     { key: 'timeBonusPoints', label: 'Time Bonus Points', type: 'number', desc: 'Extra points for fast completion' },
     { key: 'hintPenaltyPoints', label: 'Hint Penalty Points', type: 'number', desc: 'Points deducted for using a hint (0 = no penalty)' },
   ]},
+  { section: 'Timed Reveals', fields: [
+    { key: 'hintRevealDelaySec', label: 'Hint Reveal Delay (sec)', type: 'number', desc: 'Seconds after starting a task before the hint auto-reveals (e.g. 180 = 3 min)' },
+    { key: 'locationRevealDelaySec', label: 'Location Reveal Delay (sec)', type: 'number', desc: 'Seconds after starting before the map pin is shown (e.g. 360 = 6 min)' },
+  ]},
   { section: 'Leaderboard', fields: [
     { key: 'leaderboardMode', label: 'Ranking Mode', type: 'select', options: ['fastest', 'most-tasks'], desc: '"fastest" = rank by time, "most-tasks" = tasks first, then time' },
   ]},
@@ -25,10 +29,15 @@ const FIELDS = [
     { key: 'gameSubtitle', label: 'Game Subtitle', type: 'text', desc: 'Shown below the title' },
     { key: 'shuffleTaskOrder', label: 'Shuffle Task Order', type: 'toggle', desc: 'Each team gets a different random order' },
   ]},
+  { section: 'Game End Timer', fields: [
+    { key: 'gameDurationMinutes', label: 'Game Duration (min)', type: 'number', desc: 'Auto-stop game after this many minutes (0 = no limit)' },
+    { key: 'gameEndTime', label: 'Game End Time (ISO)', type: 'text', desc: 'Specific end time (e.g. 2026-06-15T16:00:00Z). Leave empty for no fixed end time.' },
+  ]},
   { section: 'Map Settings', fields: [
     { key: 'mapCenterLat', label: 'Map Center Latitude', type: 'number', desc: 'Venue center latitude' },
     { key: 'mapCenterLng', label: 'Map Center Longitude', type: 'number', desc: 'Venue center longitude' },
     { key: 'mapZoom', label: 'Map Zoom Level', type: 'number', desc: 'Default zoom (15-19 recommended)' },
+    { key: 'boundaryRadiusMeters', label: 'Game Boundary Radius (m)', type: 'number', desc: 'Draws a circle on the map showing the game area (0 = no circle)' },
   ]},
 ];
 
@@ -70,7 +79,7 @@ export default function AdminConfig() {
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 pt-6 pb-6">
+    <div className="max-w-lg mx-auto px-4 pt-6 pb-32">
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <button onClick={() => navigate('/admin')} className="text-gray-400 hover:text-white">

@@ -22,6 +22,9 @@ router.post('/:taskId/upload', auth, upload.single('photo'), async (req, res, ne
     if (submission.status === 'completed') {
       return res.status(400).json({ error: 'Photo already submitted for this task' });
     }
+    if (submission.status === 'blocked') {
+      return res.status(403).json({ error: 'This submission has been blocked by an admin. You cannot re-upload.' });
+    }
     if (!req.file) {
       return res.status(400).json({ error: 'No photo uploaded' });
     }
@@ -52,10 +55,11 @@ router.post('/:taskId/upload', auth, upload.single('photo'), async (req, res, ne
   }
 });
 
-// Public photo feed – all completed submissions (excludes blocked)
-router.get('/feed', auth, async (_req, res, next) => {
+// Photo feed – teams see ONLY their own photos (not other teams')
+router.get('/feed', auth, async (req, res, next) => {
   try {
     const feed = await Submission.find({
+      team: req.teamId,
       status: 'completed',
       photoUrl: { $ne: null },
       blockedAt: null,

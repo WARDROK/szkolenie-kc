@@ -1,5 +1,6 @@
 // ──────────────────────────────────────────────────────────────
-// Admin Photo Moderation – block/delete submitted photos
+// Admin Photo Moderation – block/delete/score submitted photos
+// Filters: status, task, scored/unscored
 // ──────────────────────────────────────────────────────────────
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,10 +13,12 @@ import {
   Trash2,
   Clock,
   Loader2,
+  Star,
   Filter,
 } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { ConfirmModal, InputModal } from '../../components/ConfirmModal';
 
 function formatMs(ms) {
   if (!ms) return '';
@@ -36,8 +39,23 @@ function timeAgo(dateStr) {
 export default function AdminPhotos() {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all | completed | blocked
+  const [taskFilter, setTaskFilter] = useState('all'); // all | taskId
+  const [scoredFilter, setScoredFilter] = useState('all'); // all | scored | unscored
+  const [scoringId, setScoringId] = useState(null); // which submission is being scored
+  const [scoreInput, setScoreInput] = useState('');
+
+  // Modal state
+  const [blockModal, setBlockModal] = useState({ open: false, id: null });
+  const [deleteModal, setDeleteModal] = useState({ open: false, id: null });
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Load tasks for the task filter dropdown
+  useEffect(() => {
+    api.get('/admin/tasks').then(({ data }) => setTasks(data)).catch(() => {});
+  }, []);
 
   const loadSubmissions = () => {
     const params = filter !== 'all' ? `?status=${filter}` : '';
@@ -48,14 +66,29 @@ export default function AdminPhotos() {
 
   useEffect(() => { setLoading(true); loadSubmissions(); }, [filter]);
 
-  const handleBlock = async (id) => {
-    const reason = prompt('Block reason (optional):') || 'Blocked by admin';
+  // Apply client-side filters (task + scored)
+  const filteredSubmissions = submissions.filter((sub) => {
+    if (taskFilter !== 'all' && sub.task?._id !== taskFilter) return false;
+    if (scoredFilter === 'scored' && (sub.photoPoints == null)) return false;
+    if (scoredFilter === 'unscored' && (sub.photoPoints != null)) return false;
+    return true;
+  });
+
+  const handleBlock = (id) => {
+    setBlockModal({ open: true, id });
+  };
+
+  const doBlock = async (reason) => {
+    setActionLoading(true);
     try {
-      await api.put(`/admin/submissions/${id}/block`, { reason });
+      await api.put(`/admin/submissions/${blockModal.id}/block`, { reason: reason || 'Blocked by admin' });
       toast.success('Photo blocked');
+      setBlockModal({ open: false, id: null });
       loadSubmissions();
     } catch (err) {
       toast.error('Failed to block');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -69,14 +102,38 @@ export default function AdminPhotos() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm('Permanently delete this submission and its photo?')) return;
+  const handleDelete = (id) => {
+    setDeleteModal({ open: true, id });
+  };
+
+  const doDelete = async () => {
+    setActionLoading(true);
     try {
-      await api.delete(`/admin/submissions/${id}`);
-      toast.success('Submission deleted permanently');
+      await api.delete(`/admin/submissions/${deleteModal.id}`);
+      toast.success('Photo deleted — team can re-upload');
+      setDeleteModal({ open: false, id: null });
       loadSubmissions();
     } catch (err) {
       toast.error('Failed to delete');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleScore = async (id) => {
+    const points = parseInt(scoreInput);
+    if (isNaN(points) || points < 0) {
+      toast.error('Enter a valid non-negative number');
+      return;
+    }
+    try {
+      await api.put(`/admin/submissions/${id}/score`, { points });
+      toast.success(`Awarded ${points} points`);
+      setScoringId(null);
+      setScoreInput('');
+      loadSubmissions();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to score');
     }
   };
 
@@ -91,8 +148,8 @@ export default function AdminPhotos() {
         <h1 className="text-xl font-black text-white">Photo Moderation</h1>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2 mb-5">
+      {/* Filter: Status */}
+      <div className="flex gap-2 mb-3">
         {['all', 'completed', 'blocked'].map((f) => (
           <button
             key={f}
@@ -108,19 +165,42 @@ export default function AdminPhotos() {
         ))}
       </div>
 
+      {/* Filter: Task + Scored */}
+      <div className="flex gap-2 mb-5">
+        <select
+          value={taskFilter}
+          onChange={(e) => setTaskFilter(e.target.value)}
+          className="flex-1 px-3 py-1.5 rounded-lg bg-dark-800 border border-white/5 text-xs text-white focus:outline-none focus:border-neon-cyan/50"
+        >
+          <option value="all">All Tasks</option>
+          {tasks.map((t) => (
+            <option key={t._id} value={t._id}>{t.title}</option>
+          ))}
+        </select>
+        <select
+          value={scoredFilter}
+          onChange={(e) => setScoredFilter(e.target.value)}
+          className="px-3 py-1.5 rounded-lg bg-dark-800 border border-white/5 text-xs text-white focus:outline-none focus:border-neon-cyan/50"
+        >
+          <option value="all">All</option>
+          <option value="scored">Scored</option>
+          <option value="unscored">Unscored</option>
+        </select>
+      </div>
+
       {/* Submissions */}
       {loading ? (
         <div className="flex justify-center py-10">
           <Loader2 className="animate-spin text-neon-cyan" size={32} />
         </div>
-      ) : submissions.length === 0 ? (
+      ) : filteredSubmissions.length === 0 ? (
         <div className="text-center py-10 text-gray-500">
           <Image size={40} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm">No submissions found</p>
         </div>
       ) : (
         <div className="space-y-4">
-          {submissions.map((sub, i) => (
+          {filteredSubmissions.map((sub, i) => (
             <motion.div
               key={sub._id}
               initial={{ opacity: 0, y: 10 }}
@@ -154,15 +234,22 @@ export default function AdminPhotos() {
                     )}
                   </div>
                 </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                  sub.status === 'blocked'
-                    ? 'bg-red-500/20 text-red-400'
-                    : sub.status === 'completed'
-                    ? 'bg-neon-green/20 text-neon-green'
-                    : 'bg-yellow-500/20 text-yellow-400'
-                }`}>
-                  {sub.status}
-                </span>
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                    sub.status === 'blocked'
+                      ? 'bg-red-500/20 text-red-400'
+                      : sub.status === 'completed'
+                      ? 'bg-neon-green/20 text-neon-green'
+                      : 'bg-yellow-500/20 text-yellow-400'
+                  }`}>
+                    {sub.status}
+                  </span>
+                  {sub.photoPoints != null && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-neon-gold/20 text-neon-gold flex items-center gap-0.5">
+                      <Star size={8} /> {sub.photoPoints} pts
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Photo */}
@@ -193,8 +280,46 @@ export default function AdminPhotos() {
                 </div>
               )}
 
+              {/* Scoring inline */}
+              {scoringId === sub._id ? (
+                <div className="px-4 py-3 flex items-center gap-2 bg-dark-800/50">
+                  <Star size={14} className="text-neon-gold flex-shrink-0" />
+                  <input
+                    type="number"
+                    min="0"
+                    value={scoreInput}
+                    onChange={(e) => setScoreInput(e.target.value)}
+                    placeholder="Points"
+                    autoFocus
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-dark-800 border border-white/10 text-white text-sm focus:outline-none focus:border-neon-gold/50"
+                    onKeyDown={(e) => e.key === 'Enter' && handleScore(sub._id)}
+                  />
+                  <button
+                    onClick={() => handleScore(sub._id)}
+                    className="px-3 py-1.5 rounded-lg bg-neon-gold/20 text-neon-gold text-xs font-bold hover:bg-neon-gold/30"
+                  >
+                    Award
+                  </button>
+                  <button
+                    onClick={() => { setScoringId(null); setScoreInput(''); }}
+                    className="px-2 py-1.5 rounded-lg text-gray-500 text-xs hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : null}
+
               {/* Actions */}
               <div className="px-4 py-3 flex items-center gap-2">
+                {/* Score button */}
+                <button
+                  onClick={() => { setScoringId(sub._id); setScoreInput(sub.photoPoints != null ? String(sub.photoPoints) : ''); }}
+                  className="flex-1 py-2 rounded-lg glass text-xs font-semibold text-neon-gold flex items-center justify-center gap-1.5 hover:bg-neon-gold/10 transition-colors"
+                >
+                  <Star size={14} />
+                  {sub.photoPoints != null ? 'Re-score' : 'Score'}
+                </button>
+
                 {sub.status === 'blocked' ? (
                   <button
                     onClick={() => handleUnblock(sub._id)}
@@ -214,16 +339,40 @@ export default function AdminPhotos() {
                 )}
                 <button
                   onClick={() => handleDelete(sub._id)}
-                  className="flex-1 py-2 rounded-lg glass text-xs font-semibold text-neon-pink flex items-center justify-center gap-1.5 hover:bg-neon-pink/10 transition-colors"
+                  className="py-2 px-3 rounded-lg glass text-xs font-semibold text-neon-pink flex items-center justify-center gap-1.5 hover:bg-neon-pink/10 transition-colors"
                 >
                   <Trash2 size={14} />
-                  Delete
                 </button>
               </div>
             </motion.div>
           ))}
         </div>
       )}
+
+      {/* Block reason modal */}
+      <InputModal
+        open={blockModal.open}
+        title="Block Photo"
+        message="Enter a reason for blocking this photo (optional). The team will get 0 points and will not be able to re-upload."
+        placeholder="Block reason (optional)"
+        confirmLabel="Block"
+        confirmColor="red"
+        onConfirm={doBlock}
+        onCancel={() => setBlockModal({ open: false, id: null })}
+        loading={actionLoading}
+      />
+
+      {/* Delete confirm modal */}
+      <ConfirmModal
+        open={deleteModal.open}
+        title="Delete Photo"
+        message="Delete this photo? The team will be able to re-upload a new photo for this task."
+        confirmLabel="Delete"
+        confirmColor="red"
+        onConfirm={doDelete}
+        onCancel={() => setDeleteModal({ open: false, id: null })}
+        loading={actionLoading}
+      />
     </div>
   );
 }
