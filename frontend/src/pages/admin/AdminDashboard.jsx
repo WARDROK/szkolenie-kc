@@ -8,7 +8,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   Shield,
   ListChecks,
-  Image,
+  Images,
   Settings,
   Users,
   Loader2,
