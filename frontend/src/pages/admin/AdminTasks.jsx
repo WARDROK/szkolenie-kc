@@ -68,11 +68,23 @@ export default function AdminTasks() {
 
   // ── Map click handler: set lat/lng on editing task ─────────
   const handleMapClick = ({ lat, lng }) => {
-    if (editing) {
+    if (editing && editing !== 'new') {
+      const newLat = parseFloat(lat.toFixed(6));
+      const newLng = parseFloat(lng.toFixed(6));
+      // Update form + local markers immediately
+      setForm((f) => ({ ...f, lat: String(newLat), lng: String(newLng) }));
+      setTasks((prev) =>
+        prev.map((t) =>
+          t._id === editing ? { ...t, lat: newLat, lng: newLng } : t
+        )
+      );
+      // Immediately ask to confirm & save the move
+      setConfirm({ open: true, type: 'save', taskId: editing });
+    } else if (editing === 'new') {
       setForm((f) => ({ ...f, lat: lat.toFixed(6), lng: lng.toFixed(6) }));
       toast.success(`Location set: ${lat.toFixed(5)}, ${lng.toFixed(5)}`);
     } else {
-      toast('Click a task first, then click the map to set its location', { icon: '📍' });
+      toast('Select a task below first, then click the map to move it', { icon: '📍' });
     }
   };
 
@@ -181,7 +193,20 @@ export default function AdminTasks() {
     else if (confirm.type === 'save') doSave();
   };
 
-  const closeConfirm = () => setConfirm({ open: false, type: null, taskId: null });
+  const closeConfirm = () => {
+    // If cancelling a save, revert form & marker to original position
+    if (confirm.type === 'save') {
+      setForm({ ...originalForm });
+      setTasks((prev) =>
+        prev.map((t) =>
+          t._id === editing
+            ? { ...t, lat: parseFloat(originalForm.lat) || t.lat, lng: parseFloat(originalForm.lng) || t.lng }
+            : t
+        )
+      );
+    }
+    setConfirm({ open: false, type: null, taskId: null });
+  };
 
   const updateField = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -398,7 +423,7 @@ export default function AdminTasks() {
       <ConfirmModal
         open={confirm.open && confirm.type === 'save'}
         title="Save Changes"
-        message="Are you sure you want to update this task? Teams that already completed it won't be affected."
+        message="Are you sure you want to save changes to this task? This will update the task for all teams."
         confirmLabel="Save"
         confirmColor="cyan"
         onConfirm={handleConfirmAction}

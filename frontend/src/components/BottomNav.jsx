@@ -28,7 +28,7 @@ export default function BottomNav() {
           <NavLink
             key={to}
             to={to}
-            end={to === '/'}
+            end={to === '/' || to === '/admin'}
             className={({ isActive }) =>
               `flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl transition-all duration-200 ${
                 isActive

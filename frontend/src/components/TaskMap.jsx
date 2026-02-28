@@ -39,6 +39,14 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
   const circleRef = useRef(null);
+  const initialFitDoneRef = useRef(false);
+
+  // Keep a ref to the latest onMapClick so the Leaflet click handler
+  // (set up once in initMap) always calls the current callback
+  const onMapClickRef = useRef(onMapClick);
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
 
   useEffect(() => {
     // Dynamically load Leaflet CSS + JS if not already loaded
@@ -107,10 +115,12 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
       .addAttribution('&copy; <a href="https://carto.com/">CARTO</a>')
       .addTo(map);
 
-    // Admin click-to-place handler
-    if (adminMode && onMapClick) {
+    // Admin click-to-place handler (uses ref so it always calls latest callback)
+    if (adminMode) {
       map.on('click', (e) => {
-        onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+        if (onMapClickRef.current) {
+          onMapClickRef.current({ lat: e.latlng.lat, lng: e.latlng.lng });
+        }
       });
     }
 
@@ -156,9 +166,15 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
     markersRef.current.forEach((m) => map.removeLayer(m));
     markersRef.current = [];
 
-    const tasksWithCoords = tasks.filter((t) => t.lat && t.lng);
+    const tasksWithCoords = tasks.filter((t) => {
+      const lat = parseFloat(t.lat);
+      const lng = parseFloat(t.lng);
+      return Number.isFinite(lat) && Number.isFinite(lng);
+    });
 
     tasksWithCoords.forEach((task) => {
+      const lat = parseFloat(task.lat);
+      const lng = parseFloat(task.lng);
       const color = STATUS_COLORS[task.status] || STATUS_COLORS['not-started'];
       const number = task.queuePosition || task.order || '?';
 
@@ -170,7 +186,7 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
         popupAnchor: [0, -46],
       });
 
-      const marker = L.marker([task.lat, task.lng], { icon })
+      const marker = L.marker([lat, lng], { icon })
         .addTo(map);
 
       // Popup content – admin sees simple info (no "start task"), teams see action button
@@ -182,7 +198,7 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
             </div>
             <div style="font-size: 14px; font-weight: 800; margin-bottom: 4px; color: #111;">${task.title}</div>
             <div style="font-size: 11px; color: #6b7280;">${task.locationHint || ''}</div>
-            <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Lat: ${task.lat.toFixed(5)}, Lng: ${task.lng.toFixed(5)}</div>
+            <div style="font-size: 10px; color: #9ca3af; margin-top: 4px;">Lat: ${lat.toFixed(5)}, Lng: ${lng.toFixed(5)}</div>
           </div>
         `
         : `
@@ -209,10 +225,23 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
       markersRef.current.push(marker);
     });
 
-    // Fit bounds if we have markers
-    if (tasksWithCoords.length > 1) {
-      const bounds = L.latLngBounds(tasksWithCoords.map((t) => [t.lat, t.lng]));
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+    // Fit bounds only on initial load (not when a single marker moves)
+    if (!initialFitDoneRef.current && tasksWithCoords.length > 0) {
+      initialFitDoneRef.current = true;
+      try {
+        if (tasksWithCoords.length > 1) {
+          const bounds = L.latLngBounds(
+            tasksWithCoords.map((t) => [parseFloat(t.lat), parseFloat(t.lng)])
+          );
+          if (bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+          }
+        } else {
+          map.setView([parseFloat(tasksWithCoords[0].lat), parseFloat(tasksWithCoords[0].lng)], 17);
+        }
+      } catch (e) {
+        // Leaflet bounds error – ignore silently
+      }
     }
   }
 

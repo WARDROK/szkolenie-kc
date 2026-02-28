@@ -54,23 +54,27 @@ router.get('/', async (_req, res, next) => {
       return (a.totalElapsedMs || 0) - (b.totalElapsedMs || 0);
     });
 
-    // Hydrate team names
+    // Hydrate team names (exclude admin accounts)
     const teamIds = enriched.map((s) => s._id);
     const teams = await Team.find({ _id: { $in: teamIds } }).lean();
     const teamMap = {};
+    const adminTeamIds = new Set();
     teams.forEach((t) => {
       teamMap[t._id.toString()] = t;
+      if (t.role === 'admin') adminTeamIds.add(t._id.toString());
     });
 
-    const leaderboard = enriched.map((s, i) => ({
-      rank: i + 1,
-      teamId: s._id,
-      teamName: teamMap[s._id.toString()]?.name || 'Unknown',
-      avatarColor: teamMap[s._id.toString()]?.avatarColor || '#00f0ff',
-      completedTasks: s.completedTasks,
-      totalPoints: s.totalPoints,
-      totalElapsedMs: s.totalElapsedMs,
-    }));
+    const leaderboard = enriched
+      .filter((s) => !adminTeamIds.has(s._id.toString()))
+      .map((s, i) => ({
+        rank: i + 1,
+        teamId: s._id,
+        teamName: teamMap[s._id.toString()]?.name || 'Unknown',
+        avatarColor: teamMap[s._id.toString()]?.avatarColor || '#00f0ff',
+        completedTasks: s.completedTasks,
+        totalPoints: s.totalPoints,
+        totalElapsedMs: s.totalElapsedMs,
+      }));
 
     res.json(leaderboard);
   } catch (err) {
