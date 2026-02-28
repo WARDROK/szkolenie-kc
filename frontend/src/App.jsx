@@ -13,6 +13,8 @@ import AdminTasks from './pages/admin/AdminTasks';
 import AdminPhotos from './pages/admin/AdminPhotos';
 import AdminConfig from './pages/admin/AdminConfig';
 import AdminTeams from './pages/admin/AdminTeams';
+import AdminSideQuests from './pages/admin/AdminSideQuests';
+import SideQuests from './pages/SideQuests';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
@@ -54,6 +56,7 @@ export default function App() {
         >
           <Route index element={<Tasks />} />
           <Route path="task/:id" element={<TaskDetail />} />
+          <Route path="sidequests" element={<SideQuests />} />
           <Route path="feed" element={<Feed />} />
           <Route path="gallery" element={<SideQuestGallery />} /> {/* ← ADD */}
           <Route path="leaderboard" element={<Leaderboard />} />
@@ -66,6 +69,7 @@ export default function App() {
           <Route path="photos" element={<AdminPhotos />} />
           <Route path="config" element={<AdminConfig />} />
           <Route path="teams" element={<AdminTeams />} />
+          <Route path="sidequests" element={<AdminSideQuests />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
