@@ -34,7 +34,7 @@ function createMarkerSvg(number, color) {
  * @param {Function} props.onMapClick  - Callback({lat,lng}) when map clicked (admin only)
  * @param {boolean}  props.adminMode   - If true, shows all markers and enables click-to-place
  */
-export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminMode = false }) {
+export default function TaskMap({ tasks = [], config, onTaskClick, onMapClick, adminMode = false }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
@@ -135,6 +135,20 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
       });
     }
 
+    // Ensure a safe global hook for older popup HTML that may call it.
+    // This keeps backwards compatibility and prevents runtime ReferenceErrors.
+    if (typeof window !== 'undefined' && !window.__taskMapClick__) {
+      // eslint-disable-next-line no-underscore-dangle
+      window.__taskMapClick__ = (id) => {
+        try {
+          if (onTaskClick) onTaskClick(id);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error('window.__taskMapClick__ handler threw', err);
+        }
+      };
+    }
+
     mapInstanceRef.current = map;
     updateMarkers();
     updateBoundaryCircle();
@@ -221,8 +235,7 @@ export default function TaskMap({ tasks, config, onTaskClick, onMapClick, adminM
               </div>
               <div style="font-size: 14px; font-weight: 800; margin-bottom: 6px; color: #111;">${task.title}</div>
               <div style="font-size: 11px; color: #6b7280; margin-bottom: 8px;">${task.locationHint || ''}</div>
-              <button 
-                onclick="window.__taskMapClick__('${task._id}')" 
+              <button class="task-popup-btn" data-task-id="${task._id}" 
                 style="width: 100%; padding: 8px; border-radius: 8px; border: none; background: ${color}; color: #0a0a0f; font-weight: 700; font-size: 12px; cursor: pointer;">
                 ${task.status === 'completed' ? 'View Details' : task.status === 'in-progress' ? 'Continue' : 'Go to Task'}
               </button>
