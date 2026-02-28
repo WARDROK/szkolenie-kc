@@ -1,6 +1,7 @@
-// ──────────────────────────────────────────────────────────────
+// ─────────────────────���────────────────────────────────────────
 // SideQuest routes (team-facing)
 // GET  /api/sidequests           → list all active sidequests
+// GET  /api/sidequests/gallery   → all sidequest photos (gallery)
 // POST /api/sidequests/:id/submit → upload photo & mark done
 // ──────────────────────────────────────────────────────────────
 const router = require('express').Router();
@@ -14,7 +15,6 @@ router.get('/', auth, async (req, res, next) => {
   try {
     const quests = await SideQuest.find({ isActive: true }).sort('createdAt').lean();
 
-    // Fetch this team's submissions
     const submissions = await SideQuestSubmission.find({ team: req.teamId }).lean();
     const subMap = {};
     submissions.forEach((s) => { subMap[s.sideQuest.toString()] = s; });
@@ -24,18 +24,38 @@ router.get('/', auth, async (req, res, next) => {
       return {
         ...q,
         submitted: !!sub,
-        status: sub?.status || null,       // null | 'pending' | 'approved' | 'rejected'
+        status: sub?.status || null,
         photoUrl: sub?.photoUrl || null,
       };
     });
 
-    // Summary counts
-    const submitted  = submissions.length;
-    const approved   = submissions.filter((s) => s.status === 'approved').length;
-    const rejected   = submissions.filter((s) => s.status === 'rejected').length;
-    const pending    = submissions.filter((s) => s.status === 'pending').length;
+    const submitted = submissions.length;
+    const approved  = submissions.filter((s) => s.status === 'approved').length;
+    const rejected  = submissions.filter((s) => s.status === 'rejected').length;
+    const pending   = submissions.filter((s) => s.status === 'pending').length;
 
     res.json({ quests: enriched, summary: { submitted, approved, rejected, pending } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Side Quest Gallery ────────────────────────────────────────
+// GET /api/sidequests/gallery?questId=<id>
+// Zwraca zdjęcia side questów z informacją o teamie i questcie
+router.get('/gallery', auth, async (req, res, next) => {
+  try {
+    const filter = { photoUrl: { $ne: null }, status: {$ne: 'rejected'}, };
+    if (req.query.questId) filter.sideQuest = req.query.questId;
+
+    const submissions = await SideQuestSubmission.find(filter)
+      .populate('team', 'name avatarColor')
+      .populate('sideQuest', 'title description')
+      .sort('-createdAt')
+      .limit(200)
+      .lean();
+
+    res.json(submissions);
   } catch (err) {
     next(err);
   }
@@ -48,7 +68,6 @@ router.post('/:id/submit', auth, upload.single('photo'), async (req, res, next) 
     if (!quest) return res.status(404).json({ error: 'SideQuest not found' });
     if (!quest.isActive) return res.status(400).json({ error: 'This sidequest is not active' });
 
-    // Check if already submitted
     const existing = await SideQuestSubmission.findOne({
       team: req.teamId,
       sideQuest: quest._id,

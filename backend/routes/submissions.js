@@ -1,8 +1,5 @@
 // ──────────────────────────────────────────────────────────────
 // Submission routes – photo upload, feed & gallery
-// POST /api/submissions/:taskId/upload   → upload photo ★ stops timer
-// GET  /api/submissions/feed             → public chronological feed
-// GET  /api/submissions/gallery          → photos grouped by task
 // ──────────────────────────────────────────────────────────────
 const router = require('express').Router();
 const Submission = require('../models/Submission');
@@ -72,9 +69,6 @@ router.get('/feed', auth, async (_req, res, next) => {
 });
 
 // ── Side Quest Gallery ────────────────────────────────────────
-// GET /api/submissions/gallery?taskId=<id>
-// Returns photos optionally filtered by task, with task metadata.
-// Each photo includes team name/color, task title, elapsed time.
 router.get('/gallery', auth, async (req, res, next) => {
   try {
     const filter = {
@@ -87,12 +81,16 @@ router.get('/gallery', auth, async (req, res, next) => {
       filter.task = req.query.taskId;
     }
 
+    // Pobierz bez sortowania po populate — posortujemy w JS
     const submissions = await Submission.find(filter)
       .populate('team', 'name avatarColor')
       .populate('task', 'title locationHint order')
-      .sort('task.order -photoSubmittedAt')
+      .sort('-photoSubmittedAt')   // ← tylko po dacie, bez task.order (nie działa w Mongoose)
       .limit(200)
       .lean();
+
+    // Sortuj po task.order w JS
+    submissions.sort((a, b) => (a.task?.order ?? 999) - (b.task?.order ?? 999));
 
     res.json(submissions);
   } catch (err) {
