@@ -1,14 +1,12 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
+  Target,
+  Sparkles,
+  Camera,
+  Images,
+  Trophy,
   Shield,
-  ListChecks,
-  Image,
-  Settings,
-  Users,
-  Loader2,
-  BarChart3,
-  Shield,
-  Sparkles
+  LogOut,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 

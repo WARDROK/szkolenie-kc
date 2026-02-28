@@ -4,17 +4,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { NavLink, useLocation } from 'react-router-dom';
 import {
   Shield,
   ListChecks,
-  Images,
+  Image,
   Settings,
   Users,
   Loader2,
-  BarChart3,
-  Shield,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
 import api from '../../api/axios';
 
