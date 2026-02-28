@@ -110,7 +110,7 @@ export default function Tasks() {
           <Loader2 className="animate-spin text-neon-cyan" size={32} />
         </div>
       ) : view === 'map' ? (
-        <div className="flex-1 min-h-[400px] relative">
+        <div className="flex-1 min-h-[60vh] relative z-0">
           <ErrorBoundary>
             <TaskMap
               tasks={tasks}
