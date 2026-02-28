@@ -7,6 +7,7 @@ import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
 import Feed from './pages/Feed';
 import Leaderboard from './pages/Leaderboard';
+import SideQuestGallery from './pages/SideQuestGallery'; // ← ADD
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminTasks from './pages/admin/AdminTasks';
 import AdminPhotos from './pages/admin/AdminPhotos';
@@ -54,6 +55,7 @@ export default function App() {
           <Route index element={<Tasks />} />
           <Route path="task/:id" element={<TaskDetail />} />
           <Route path="feed" element={<Feed />} />
+          <Route path="gallery" element={<SideQuestGallery />} /> {/* ← ADD */}
           <Route path="leaderboard" element={<Leaderboard />} />
         </Route>
 

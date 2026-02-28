@@ -1,16 +1,7 @@
-import { Outlet } from 'react-router-dom';
-import BottomNav from './BottomNav';
+import { Images } from 'lucide-react';
 
-export default function Layout() {
-  return (
-    <div className="flex flex-col min-h-[100dvh]">
-      {/* Scrollable content area */}
-      <main className="flex-1 overflow-y-auto pb-20">
-        <Outlet />
-      </main>
-
-      {/* Fixed bottom navigation */}
-      <BottomNav />
-    </div>
-  );
-}
+// Add alongside the other nav items:
+<NavLink to="/gallery">
+  <Images size={20} />
+  <span>Gallery</span>
+</NavLink>
