@@ -129,7 +129,9 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
           <div style="font-size: 14px; font-weight: 800; margin-bottom: 6px;">${task.title}</div>
           <div style="font-size: 11px; color: #9ca3af; margin-bottom: 8px;">${task.locationHint}</div>
           <button 
-            onclick="window.__taskMapClick__('${task._id}')" 
+            type="button"
+            class="task-popup-btn"
+            data-task-id="${task._id}"
             style="width: 100%; padding: 8px; border-radius: 8px; border: none; background: ${color}; color: #0a0a0f; font-weight: 700; font-size: 12px; cursor: pointer;">
             ${task.status === 'completed' ? 'View Details' : task.status === 'in-progress' ? 'Continue' : 'Go to Task'}
           </button>
@@ -142,6 +144,31 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
         maxWidth: 220,
       });
 
+      // Attach click handler when popup opens so we can call the React-provided onTaskClick
+      marker.on('popupopen', (e) => {
+        try {
+          const popupEl = e.popup?.getElement();
+          if (!popupEl) return;
+          const btn = popupEl.querySelector('.task-popup-btn');
+          if (!btn) return;
+          const id = btn.getAttribute('data-task-id');
+          btn.onclick = () => {
+            try {
+              if (onTaskClick) onTaskClick(id);
+            } catch (err) {
+              // swallow errors from user callback to avoid breaking the map UI
+              // but surface to console for debugging
+              // eslint-disable-next-line no-console
+              console.error('onTaskClick handler threw:', err);
+            }
+          };
+        } catch (err) {
+          // defensive: ensure popup DOM interactions don't throw up to React
+          // eslint-disable-next-line no-console
+          console.error('Failed to attach popup button handler', err);
+        }
+      });
+
       markersRef.current.push(marker);
     });
 
@@ -152,15 +179,7 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
     }
   }
 
-  // Global click handler for popup buttons
-  useEffect(() => {
-    window.__taskMapClick__ = (taskId) => {
-      if (onTaskClick) onTaskClick(taskId);
-    };
-    return () => {
-      delete window.__taskMapClick__;
-    };
-  }, [onTaskClick]);
+  // ...popup handlers are attached when popups open
 
   return (
     <>
