@@ -13,6 +13,8 @@ const SideQuest = require('../models/SideQuest');
 const SideQuestSubmission = require('../models/SideQuestSubmission');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const PDFDocument = require('pdfkit');
 
 // Apply auth + admin to all routes in this file
 router.use(auth, adminOnly);
@@ -238,6 +240,199 @@ router.get('/teams', async (_req, res, next) => {
   try {
     const teams = await Team.find().select('-password').sort('name');
     res.json(teams);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Helper: generate shuffled task queue for a new team
+async function generateTaskQueueForNewTeam() {
+  const config = await GameConfig.getConfig();
+  const tasks = await Task.find({ isActive: true }).select('_id order').sort('order');
+  const ids = tasks.map((t) => t._id);
+
+  if (config.shuffleTaskOrder) {
+    for (let i = ids.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [ids[i], ids[j]] = [ids[j], ids[i]];
+    }
+  }
+  return ids;
+}
+
+// POST /api/admin/teams – create one or multiple teams
+// Body: { name } OR { teams: [{ name }, ...] }
+router.post('/teams', async (req, res, next) => {
+  try {
+    const payload = req.body;
+    const inputs = [];
+
+    if (Array.isArray(payload?.teams)) {
+      payload.teams.forEach((t) => {
+        if (t && t.name) inputs.push({ name: String(t.name).trim() });
+      });
+    } else if (payload?.name) {
+      inputs.push({ name: String(payload.name).trim() });
+    }
+
+    if (inputs.length === 0) return res.status(400).json({ error: 'No team names provided' });
+
+    const created = [];
+    const errors = [];
+
+    for (const it of inputs) {
+      const name = it.name;
+      if (!name) {
+        errors.push({ name, error: 'Empty name' });
+        continue;
+      }
+      const exists = await Team.findOne({ name });
+      if (exists) {
+        errors.push({ name, error: 'Team name already exists' });
+        continue;
+      }
+
+      // Generate 8-character alphanumeric password
+      const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const bytes = crypto.randomBytes(8);
+      let password = '';
+      for (let i = 0; i < bytes.length; i++) {
+        password += ALPHANUM[bytes[i] % ALPHANUM.length];
+      }
+      try {
+        const taskQueue = await generateTaskQueueForNewTeam();
+        const team = await Team.create({ name, password, taskQueue });
+        created.push({ id: team._id, name: team.name, password });
+      } catch (e) {
+        // capture DB/validation errors per-team and continue
+        errors.push({ name, error: e.message || 'Failed to create team' });
+      }
+    }
+
+    if (created.length === 0) {
+      return res.status(400).json({ error: 'No teams created', errors });
+    }
+    res.status(201).json({ created, errors });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// (Removed /teams/pdf endpoint — use /teams/generate and /teams/print instead)
+
+// POST /api/admin/teams/generate – create N teams named team1..teamN
+router.post('/teams/generate', async (req, res, next) => {
+  try {
+    const count = parseInt(req.body.count, 10);
+    if (!count || count <= 0) return res.status(400).json({ error: 'Invalid count' });
+    const created = [];
+    const errors = [];
+
+    // Find existing teams named team<number> and determine the highest index
+    const existing = await Team.find({ name: { $regex: '^team\\d+$' } }).select('name').lean();
+    let maxIndex = 0;
+    for (const e of existing) {
+      const m = e.name.match(/^team(\d+)$/);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (!Number.isNaN(n) && n > maxIndex) maxIndex = n;
+      }
+    }
+
+    // Start from next available index
+    const startIndex = maxIndex + 1;
+
+    for (let k = 0; k < count; k++) {
+      const num = startIndex + k;
+      const name = `team${num}`;
+      const exists = await Team.findOne({ name });
+      if (exists) {
+        errors.push({ name, error: 'Team name already exists' });
+        continue;
+      }
+
+      // generate password (8 alphanumeric)
+      const ALPHANUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      const bytes = crypto.randomBytes(8);
+      let password = '';
+      for (let b = 0; b < bytes.length; b++) password += ALPHANUM[bytes[b] % ALPHANUM.length];
+
+      try {
+        const taskQueue = await generateTaskQueueForNewTeam();
+        const team = await Team.create({ name, password, taskQueue });
+        created.push({ id: team._id, name: team.name, password });
+      } catch (e) {
+        errors.push({ name, error: e.message || 'Failed to create' });
+      }
+    }
+
+    if (created.length === 0) return res.status(400).json({ error: 'No teams created', errors });
+    res.status(201).json({ created, errors });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/teams/print – generate a printable PDF from provided entries [{name,password}, ...]
+router.post('/teams/print', async (req, res, next) => {
+  try {
+    const entries = Array.isArray(req.body.entries) ? req.body.entries : null;
+    if (!entries || entries.length === 0) return res.status(400).json({ error: 'No entries provided' });
+
+    const doc = new PDFDocument({ size: 'A4', margin: 40 });
+    const buffers = [];
+    doc.on('data', (d) => buffers.push(d));
+    doc.on('end', () => {
+      const pdfData = Buffer.concat(buffers);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', 'attachment; filename="team-passwords.pdf"');
+      res.send(pdfData);
+    });
+
+    // Title
+    doc.fontSize(18).text('Team names & passwords', { align: 'center' });
+    doc.moveDown(1);
+
+    // Table layout
+    const pageWidth = doc.page.width;
+    const marginLeft = doc.page.margins.left;
+    const marginRight = doc.page.margins.right;
+    const usableWidth = pageWidth - marginLeft - marginRight;
+    const nameColWidth = Math.floor(usableWidth * 0.7);
+    const passColWidth = usableWidth - nameColWidth;
+    const startX = marginLeft;
+
+    // Header row
+    const headerHeight = 28;
+    let y = doc.y + 6;
+    doc.rect(startX, y, usableWidth, headerHeight).fillAndStroke('#f3f4f6', '#e5e7eb');
+    doc.fillColor('#111827').fontSize(12).text('Team Name', startX + 8, y + 8, { width: nameColWidth - 16, align: 'left' });
+    doc.text('Password', startX + nameColWidth + 8, y + 8, { width: passColWidth - 16, align: 'left' });
+    y += headerHeight;
+
+    // Rows
+    const rowHeight = 48; // generous spacing for cutting
+    doc.fontSize(14).fillColor('#ffffff');
+    entries.forEach((c, i) => {
+      if (y + rowHeight > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        y = doc.y;
+      }
+
+      // Draw cell borders
+      doc.save();
+      doc.rect(startX, y, nameColWidth, rowHeight).stroke('#d1d5db');
+      doc.rect(startX + nameColWidth, y, passColWidth, rowHeight).stroke('#d1d5db');
+      doc.restore();
+
+      // Text with padding
+      doc.fillColor('#111827').fontSize(13).text(c.name, startX + 8, y + 12, { width: nameColWidth - 16, align: 'left' });
+      doc.text(c.password, startX + nameColWidth + 8, y + 12, { width: passColWidth - 16, align: 'left' });
+
+      y += rowHeight;
+    });
+
+    doc.end();
   } catch (err) {
     next(err);
   }
