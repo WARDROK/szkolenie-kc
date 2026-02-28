@@ -82,6 +82,7 @@ app.use('/api/tasks', require('./routes/tasks'));
 app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/sidequests', require('./routes/sidequests'));
 app.use('/api/config', require('./routes/gameConfig'));
 
 // Root API info

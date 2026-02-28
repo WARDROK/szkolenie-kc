@@ -1,9 +1,10 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Target, Camera, Trophy, LogOut, Shield } from 'lucide-react';
+import { Target, Camera, Trophy, LogOut, Shield, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const teamTabs = [
   { to: '/', icon: Target, label: 'Tasks' },
+  { to: '/sidequests', icon: Sparkles, label: 'Side Q' },
   { to: '/feed', icon: Camera, label: 'Feed' },
   { to: '/leaderboard', icon: Trophy, label: 'Ranks' },
 ];

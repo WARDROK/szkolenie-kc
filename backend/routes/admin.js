@@ -9,6 +9,8 @@ const Task = require('../models/Task');
 const Team = require('../models/Team');
 const Submission = require('../models/Submission');
 const GameConfig = require('../models/GameConfig');
+const SideQuest = require('../models/SideQuest');
+const SideQuestSubmission = require('../models/SideQuestSubmission');
 const fs = require('fs');
 const path = require('path');
 
@@ -307,6 +309,112 @@ router.get('/stats', async (_req, res, next) => {
       blocked: blockedCount,
       inProgress: submissionCount - completedCount - blockedCount,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+// ██ SIDEQUESTS MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+
+// GET /api/admin/sidequests – list ALL sidequests (including inactive)
+router.get('/sidequests', async (_req, res, next) => {
+  try {
+    const quests = await SideQuest.find().sort('createdAt').lean();
+    res.json(quests);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/sidequests – create a new sidequest
+router.post('/sidequests', async (req, res, next) => {
+  try {
+    const { title, description, isActive } = req.body;
+    if (!title) return res.status(400).json({ error: 'title is required' });
+
+    const quest = await SideQuest.create({
+      title,
+      description: description || '',
+      isActive: isActive !== undefined ? isActive : true,
+    });
+    res.status(201).json(quest);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/admin/sidequests/:id – update a sidequest
+router.put('/sidequests/:id', async (req, res, next) => {
+  try {
+    const quest = await SideQuest.findById(req.params.id);
+    if (!quest) return res.status(404).json({ error: 'SideQuest not found' });
+
+    ['title', 'description', 'isActive'].forEach((f) => {
+      if (req.body[f] !== undefined) quest[f] = req.body[f];
+    });
+    await quest.save();
+    res.json(quest);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// DELETE /api/admin/sidequests/:id – delete a sidequest + its submissions
+router.delete('/sidequests/:id', async (req, res, next) => {
+  try {
+    const quest = await SideQuest.findByIdAndDelete(req.params.id);
+    if (!quest) return res.status(404).json({ error: 'SideQuest not found' });
+    await SideQuestSubmission.deleteMany({ sideQuest: req.params.id });
+    res.json({ message: 'SideQuest deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// GET /api/admin/sidequests/submissions – list sidequest submissions (filter: ?completed=true|false)
+router.get('/sidequests/submissions', async (req, res, next) => {
+  try {
+    const filter = {};
+    const submissions = await SideQuestSubmission.find(filter)
+      .populate('team', 'name avatarColor')
+      .populate('sideQuest', 'title description')
+      .sort('-createdAt')
+      .lean();
+    res.json(submissions);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/admin/sidequests/submissions/:id/approve – approve a submission
+router.put('/sidequests/submissions/:id/approve', async (req, res, next) => {
+  try {
+    const sub = await SideQuestSubmission.findById(req.params.id);
+    if (!sub) return res.status(404).json({ error: 'Submission not found' });
+
+    sub.status = 'approved';
+    sub.reviewedBy = req.teamId;
+    sub.reviewedAt = new Date();
+    await sub.save();
+    res.json({ message: 'Approved', submission: sub });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/admin/sidequests/submissions/:id/reject – reject a submission
+router.put('/sidequests/submissions/:id/reject', async (req, res, next) => {
+  try {
+    const sub = await SideQuestSubmission.findById(req.params.id);
+    if (!sub) return res.status(404).json({ error: 'Submission not found' });
+
+    sub.status = 'rejected';
+    sub.reviewedBy = req.teamId;
+    sub.reviewedAt = new Date();
+    await sub.save();
+    res.json({ message: 'Rejected', submission: sub });
   } catch (err) {
     next(err);
   }

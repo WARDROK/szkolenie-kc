@@ -12,6 +12,7 @@ import {
   Users,
   Loader2,
   BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import api from '../../api/axios';
 
@@ -51,11 +52,19 @@ export default function AdminDashboard() {
       stat: stats ? `${stats.teams} teams` : null,
     },
     {
+      to: '/admin/sidequests',
+      icon: Sparkles,
+      label: 'Side Quests',
+      desc: 'Manage bonus challenges & rate submissions',
+      color: 'text-neon-gold',
+      stat: null,
+    },
+    {
       to: '/admin/config',
       icon: Settings,
       label: 'Game Settings',
       desc: 'Points, timers, map, registration',
-      color: 'text-neon-gold',
+      color: 'text-yellow-500',
       stat: null,
     },
   ];
