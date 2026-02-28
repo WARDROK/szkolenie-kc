@@ -116,7 +116,7 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
       markersRef.current = [];
 
       const taskList = Array.isArray(tasks) ? tasks : [];
-      const tasksWithCoords = taskList.filter((t) => t && t.lat && t.lng);
+      const tasksWithCoords = taskList.filter((t) => t && Number.isFinite(t.lat) && Number.isFinite(t.lng));
 
     tasksWithCoords.forEach((task) => {
       try {
@@ -194,7 +194,15 @@ export default function TaskMap({ tasks, config, onTaskClick }) {
       // Fit bounds if we have markers
       if (tasksWithCoords.length > 1) {
         const bounds = L.latLngBounds(tasksWithCoords.map((t) => [t.lat, t.lng]));
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+        if (bounds.isValid()) {
+          try {
+            map.fitBounds(bounds, { padding: [40, 40], maxZoom: 18 });
+          } catch {
+            // fitBounds can throw if the map container has zero dimensions (not yet visible)
+          }
+        }
+      } else if (tasksWithCoords.length === 1) {
+        map.setView([tasksWithCoords[0].lat, tasksWithCoords[0].lng], config?.mapZoom || 17);
       }
     } catch (err) {
       // Catch any unexpected errors during marker update (effects are not caught by ErrorBoundary)
