@@ -91,7 +91,6 @@ app.get('/api', (_req, res) => res.json({
   endpoints: [
     'GET  /api/health',
     'POST /api/auth/login',
-    'POST /api/auth/register',
     'GET  /api/tasks',
     'GET  /api/config',
     'GET  /api/leaderboard',

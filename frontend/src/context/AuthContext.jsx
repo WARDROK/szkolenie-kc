@@ -23,17 +23,9 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const register = async (name, password) => {
-    setLoading(true);
-    try {
-      const { data } = await api.post('/auth/register', { name, password });
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('team', JSON.stringify(data.team));
-      setTeam(data.team);
-      return data;
-    } finally {
-      setLoading(false);
-    }
+  // Registration removed: frontend no longer supports creating teams.
+  const register = async () => {
+    throw new Error('Registration disabled');
   };
 
   const logout = () => {

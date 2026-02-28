@@ -32,37 +32,9 @@ async function generateTaskQueue() {
 }
 
 // POST /api/auth/register
-router.post('/register', async (req, res, next) => {
-  try {
-    const config = await GameConfig.getConfig();
-    if (!config.allowRegistration) {
-      return res.status(403).json({ error: 'Registration is currently disabled' });
-    }
-
-    const { name, password } = req.body;
-    if (!name || !password) {
-      return res.status(400).json({ error: 'Team name and password are required' });
-    }
-
-    const exists = await Team.findOne({ name });
-    if (exists) return res.status(409).json({ error: 'Team name already taken' });
-
-    const taskQueue = await generateTaskQueue();
-    const team = await Team.create({ name, password, taskQueue });
-    const token = signToken(team);
-
-    res.status(201).json({
-      token,
-      team: {
-        id: team._id,
-        name: team.name,
-        avatarColor: team.avatarColor,
-        role: team.role,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
+// Registration removed: always return 410 Gone. Team creation must be done by admins via /api/admin
+router.post('/register', async (_req, res) => {
+  res.status(410).json({ error: 'Registration has been disabled. Contact an admin to create teams.' });
 });
 
 // POST /api/auth/login

@@ -19,11 +19,10 @@ const FIELDS = [
   { section: 'Leaderboard', fields: [
     { key: 'leaderboardMode', label: 'Ranking Mode', type: 'select', options: ['fastest', 'most-tasks'], desc: '"fastest" = rank by time, "most-tasks" = tasks first, then time' },
   ]},
-  { section: 'Game State', fields: [
+    { section: 'Game State', fields: [
     { key: 'gameActive', label: 'Game Active', type: 'toggle', desc: 'Turn the whole game on/off' },
     { key: 'gameTitle', label: 'Game Title', type: 'text', desc: 'Shown in the app header' },
     { key: 'gameSubtitle', label: 'Game Subtitle', type: 'text', desc: 'Shown below the title' },
-    { key: 'allowRegistration', label: 'Allow Registration', type: 'toggle', desc: 'Can new teams register?' },
     { key: 'shuffleTaskOrder', label: 'Shuffle Task Order', type: 'toggle', desc: 'Each team gets a different random order' },
   ]},
   { section: 'Map Settings', fields: [
