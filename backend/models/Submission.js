@@ -19,9 +19,14 @@ const submissionSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ['in-progress', 'completed'],
+      enum: ['in-progress', 'completed', 'blocked'],
       default: 'in-progress',
     },
+
+    // ── Admin moderation ────────────────────────────────────
+    blockedAt: { type: Date, default: null },
+    blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', default: null },
+    blockReason: { type: String, default: '' },
   },
   { timestamps: true }
 );

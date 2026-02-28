@@ -5,13 +5,15 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: '0.0.0.0',        // allow Docker container to be reached from host
+    watch: { usePolling: true }, // needed for Docker volume file watching on Windows
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: process.env.DOCKER ? 'http://backend:4000' : 'http://localhost:4000',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:4000',
+        target: process.env.DOCKER ? 'http://backend:4000' : 'http://localhost:4000',
         changeOrigin: true,
       },
     },

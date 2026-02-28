@@ -7,10 +7,22 @@ import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
 import Feed from './pages/Feed';
 import Leaderboard from './pages/Leaderboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminTasks from './pages/admin/AdminTasks';
+import AdminPhotos from './pages/admin/AdminPhotos';
+import AdminConfig from './pages/admin/AdminConfig';
+import AdminTeams from './pages/admin/AdminTeams';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+function AdminRoute({ children }) {
+  const { isAuthenticated, team } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (team?.role !== 'admin') return <Navigate to="/" replace />;
+  return children;
 }
 
 export default function App() {
@@ -29,6 +41,8 @@ export default function App() {
       />
       <Routes>
         <Route path="/login" element={<Login />} />
+
+        {/* Team routes */}
         <Route
           path="/"
           element={
@@ -42,6 +56,16 @@ export default function App() {
           <Route path="feed" element={<Feed />} />
           <Route path="leaderboard" element={<Leaderboard />} />
         </Route>
+
+        {/* Admin routes */}
+        <Route path="/admin" element={<AdminRoute><Layout /></AdminRoute>}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="tasks" element={<AdminTasks />} />
+          <Route path="photos" element={<AdminPhotos />} />
+          <Route path="config" element={<AdminConfig />} />
+          <Route path="teams" element={<AdminTeams />} />
+        </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

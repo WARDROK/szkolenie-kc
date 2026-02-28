@@ -52,10 +52,14 @@ router.post('/:taskId/upload', auth, upload.single('photo'), async (req, res, ne
   }
 });
 
-// Public photo feed – all completed submissions
+// Public photo feed – all completed submissions (excludes blocked)
 router.get('/feed', auth, async (_req, res, next) => {
   try {
-    const feed = await Submission.find({ status: 'completed', photoUrl: { $ne: null } })
+    const feed = await Submission.find({
+      status: 'completed',
+      photoUrl: { $ne: null },
+      blockedAt: null,
+    })
       .populate('team', 'name avatarColor')
       .populate('task', 'title locationHint')
       .sort('-photoSubmittedAt')

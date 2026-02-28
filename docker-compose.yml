@@ -1,0 +1,62 @@
+# ──────────────────────────────────────────────────────────────
+# Scavenger Hunt App – Docker Compose (Development)
+# Run:  docker compose up --build
+# Frontend: http://localhost:5173  (Vite HMR – live changes)
+# Backend:  http://localhost:4001  (nodemon – auto-restart)
+# ──────────────────────────────────────────────────────────────
+
+services:
+  # ── MongoDB ─────────────────────────────────────────────────
+  mongo:
+    image: mongo:7
+    container_name: scavenger-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: scavenger-hunt
+
+  # ── Backend API (dev – nodemon for auto-restart) ────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: scavenger-backend
+    restart: unless-stopped
+    ports:
+      - "4001:4000"
+    depends_on:
+      - mongo
+    environment:
+      PORT: 4000
+      MONGODB_URI: mongodb://mongo:27017/scavenger-hunt
+      JWT_SECRET: ${JWT_SECRET:-super-secret-change-me-in-production}
+      ADMIN_SETUP_KEY: ${ADMIN_SETUP_KEY:-admin-setup-key-change-me}
+      CLIENT_URL: ${CLIENT_URL:-http://localhost:5173}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - uploads_data:/app/uploads
+
+  # ── Frontend (dev – Vite HMR for instant changes) ──────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: scavenger-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: /api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  mongo_data:
+  uploads_data:

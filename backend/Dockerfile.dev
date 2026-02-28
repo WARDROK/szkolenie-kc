@@ -1,0 +1,16 @@
+# ── Backend Dockerfile (Development – nodemon hot-reload) ──────
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install ALL deps (including devDependencies like nodemon)
+COPY package*.json ./
+RUN npm install
+
+# Create uploads directory
+RUN mkdir -p /app/uploads
+
+EXPOSE 4000
+
+# Use nodemon for auto-restart on file changes
+CMD ["npx", "nodemon", "--watch", ".", "--ext", "js,json", "server.js"]

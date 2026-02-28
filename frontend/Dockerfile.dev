@@ -1,0 +1,13 @@
+# ── Frontend Dockerfile (Development – Vite HMR hot-reload) ────
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+ENV DOCKER=true
+EXPOSE 5173
+
+# Vite dev server with --host to be accessible from Docker host
+CMD ["npx", "vite", "--host", "0.0.0.0", "--port", "5173"]

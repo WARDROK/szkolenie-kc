@@ -22,6 +22,17 @@ const teamSchema = new mongoose.Schema(
       type: String,
       default: '#00f0ff', // neon accent default
     },
+
+    // ── Role: 'team' (default) or 'admin' ───────────────
+    role: {
+      type: String,
+      enum: ['team', 'admin'],
+      default: 'team',
+    },
+
+    // ── Each team gets a unique shuffled task order ──────
+    // Array of Task ObjectIds in the order this team should complete them
+    taskQueue: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
   },
   { timestamps: true }
 );

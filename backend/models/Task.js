@@ -12,6 +12,11 @@ const taskSchema = new mongoose.Schema(
     points: { type: Number, default: 100 },
     order: { type: Number, default: 0 },                     // display order
     isActive: { type: Boolean, default: true },
+
+    // ── Map coordinates ─────────────────────────────────
+    lat: { type: Number, default: null },                    // latitude
+    lng: { type: Number, default: null },                    // longitude
+    mapLabel: { type: String, default: '' },                 // short label shown on map marker
   },
   { timestamps: true }
 );

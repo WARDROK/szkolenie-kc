@@ -19,16 +19,23 @@ export default function Login() {
       return;
     }
     try {
+      let result;
       if (isRegister) {
-        await register(name.trim(), password);
+        result = await register(name.trim(), password);
         toast.success('Team created!');
       } else {
-        await login(name.trim(), password);
+        result = await login(name.trim(), password);
         toast.success('Welcome back!');
       }
-      navigate('/', { replace: true });
+      // Redirect admin to admin panel, teams to tasks
+      if (result?.team?.role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Something went wrong');
+      console.error('Login error:', err);
+      toast.error(err.response?.data?.error || err.message || 'Something went wrong');
     }
   };
 
