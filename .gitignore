@@ -1,4 +1,9 @@
 backend/node_modules/
-frontend/dist/
-backend/.env
 frontend/node_modules/
+frontend/dist/
+
+# Environment files (keep .env.example tracked)
+.env
+backend/.env
+frontend/.env
+frontend/.env.local

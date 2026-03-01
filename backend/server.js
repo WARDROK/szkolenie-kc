@@ -18,8 +18,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // ── Database ─────────────────────────────────────────────────
+const mongoUri =
+  process.env.MONGODB_URI ||
+  process.env.AZURE_COSMOS_CONNECTIONSTRING ||
+  'mongodb://localhost:27017/scavenger-hunt';
+
 mongoose
-  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/scavenger-hunt')
+  .connect(mongoUri)
   .then(async () => {
     console.log('✅  MongoDB connected');
     await autoSeed();
@@ -102,9 +107,12 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 // ── Error handler ─────────────────────────────────────────────
 app.use((err, _req, res, _next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-  });
+  const status = err.status || 500;
+  const message =
+    process.env.NODE_ENV === 'production' && status === 500
+      ? 'Internal server error'
+      : err.message || 'Internal server error';
+  res.status(status).json({ error: message });
 });
 
 // ── Start ─────────────────────────────────────────────────────
