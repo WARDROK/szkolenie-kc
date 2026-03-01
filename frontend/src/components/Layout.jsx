@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
-  const { team, isAuthenticated, updateName } = useAuth();
+  const { team, isAuthenticated, updateName: contextUpdateName } = useAuth();
+  const updateName = contextUpdateName || (() => {});
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const navigate = useNavigate();
 
