@@ -20,11 +20,10 @@ export default function Login() {
     try {
       const result = await login(name.trim(), password);
       toast.success('Welcome back!');
-      // Full page redirect ensures clean React tree when switching roles
       if (result?.team?.role === 'admin') {
-        window.location.href = '/admin';
+        navigate('/admin');
       } else {
-        window.location.href = '/';
+        navigate('/');
       }
     } catch (err) {
       console.error('Login error:', err);
