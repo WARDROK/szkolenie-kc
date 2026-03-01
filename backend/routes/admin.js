@@ -52,6 +52,11 @@ router.put('/config', async (req, res, next) => {
       'mapZoom',
       'allowRegistration',
       'shuffleTaskOrder',
+      'hintRevealDelaySec',
+      'locationRevealDelaySec',
+      'boundaryRadiusMeters',
+      'gameEndTime',
+      'gameDurationMinutes',
     ];
 
     allowedFields.forEach((field) => {
@@ -184,9 +189,32 @@ router.put('/submissions/:id/block', async (req, res, next) => {
     submission.blockedAt = new Date();
     submission.blockedBy = req.teamId;
     submission.blockReason = req.body.reason || 'Blocked by admin';
+    submission.photoPoints = 0;
     await submission.save();
 
     res.json({ message: 'Submission blocked', submission });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/admin/submissions/:id/score – assign points to a photo submission
+router.put('/submissions/:id/score', async (req, res, next) => {
+  try {
+    const submission = await Submission.findById(req.params.id);
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    const points = parseInt(req.body.points);
+    if (isNaN(points) || points < 0) {
+      return res.status(400).json({ error: 'Points must be a non-negative number' });
+    }
+
+    submission.photoPoints = points;
+    submission.scoredAt = new Date();
+    submission.scoredBy = req.teamId;
+    await submission.save();
+
+    res.json({ message: 'Photo scored', submission });
   } catch (err) {
     next(err);
   }
@@ -210,7 +238,7 @@ router.put('/submissions/:id/unblock', async (req, res, next) => {
   }
 });
 
-// DELETE /api/admin/submissions/:id – permanently delete a submission & photo
+// DELETE /api/admin/submissions/:id – delete the photo so team can re-upload
 router.delete('/submissions/:id', async (req, res, next) => {
   try {
     const submission = await Submission.findById(req.params.id);
@@ -224,8 +252,21 @@ router.delete('/submissions/:id', async (req, res, next) => {
       }
     }
 
-    await Submission.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Submission deleted permanently' });
+    // Reset to in-progress so the team can re-upload (timer keeps running)
+    submission.photoUrl = null;
+    submission.cloudinaryId = null;
+    submission.photoSubmittedAt = null;
+    submission.elapsedMs = null;
+    submission.status = 'in-progress';
+    submission.photoPoints = null;
+    submission.scoredAt = null;
+    submission.scoredBy = null;
+    submission.blockedAt = null;
+    submission.blockedBy = null;
+    submission.blockReason = '';
+    await submission.save();
+
+    res.json({ message: 'Photo deleted — team can re-upload' });
   } catch (err) {
     next(err);
   }
@@ -235,10 +276,10 @@ router.delete('/submissions/:id', async (req, res, next) => {
 // ██ TEAMS MANAGEMENT
 // ══════════════════════════════════════════════════════════════
 
-// GET /api/admin/teams – list all teams
+// GET /api/admin/teams – list all teams (excluding admin)
 router.get('/teams', async (_req, res, next) => {
   try {
-    const teams = await Team.find().select('-password').sort('name');
+    const teams = await Team.find({ role: { $ne: 'admin' } }).select('-password').sort('name');
     res.json(teams);
   } catch (err) {
     next(err);
