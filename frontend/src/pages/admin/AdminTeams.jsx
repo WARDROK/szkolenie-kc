@@ -181,11 +181,11 @@ export default function AdminTeams() {
             </div>
             <button
               type="submit"
-              disabled={creatingUser}
+              disabled={creating}
               className="w-full py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-neon-green to-green-400 text-dark-900 flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {creatingUser ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
-              {creatingUser ? 'Creating...' : 'Create Team'}
+              {creating ? <Loader2 className="animate-spin" size={16} /> : <Plus size={16} />}
+              {creating ? 'Creating...' : 'Create Team'}
             </button>
           </motion.form>
         )}
