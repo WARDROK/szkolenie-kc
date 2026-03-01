@@ -16,8 +16,6 @@ const signToken = (team) =>
     { expiresIn: '24h' }
   );
 
-
-const authMiddleware = require('../middleware/auth');
 // ── Helper: generate shuffled task queue for a new team ──────
 async function generateTaskQueue() {
   const config = await GameConfig.getConfig();
