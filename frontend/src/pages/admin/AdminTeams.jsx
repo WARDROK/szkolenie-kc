@@ -72,7 +72,7 @@ export default function AdminTeams() {
     }
     setCreating(true);
     try {
-      await api.post('/admin/teams', { name: newName.trim(), password: newPassword });
+      await api.post('/admin/teams', { name: newName.trim(), password: newPassword.trim() });
       toast.success(`Team "${newName.trim()}" created!`);
       setNewName('');
       setNewPassword('');
