@@ -150,7 +150,7 @@ router.post('/admin-setup', async (req, res, next) => {
 });
 
 // PUT /api/auth/name – update current team's name (authenticated)
-router.put('/name', authMiddleware, async (req, res, next) => {
+router.put('/name', auth, async (req, res, next) => {
   try {
     const { name } = req.body;
     if (!name || !String(name).trim()) return res.status(400).json({ error: 'Name is required' });
