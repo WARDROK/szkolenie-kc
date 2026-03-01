@@ -11,6 +11,7 @@ import {
   Clock,
   Sparkles,
   Play,
+  Navigation,
 } from 'lucide-react';
 import api from '../api/axios';
 import useTimer from '../hooks/useTimer';
@@ -22,10 +23,12 @@ export default function TaskDetail() {
 
   const [task, setTask] = useState(null);
   const [submission, setSubmission] = useState(null);
+  const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [hintRevealed, setHintRevealed] = useState(false);
+  const [locationRevealed, setLocationRevealed] = useState(false);
   const [preview, setPreview] = useState(null);
 
   const fileRef = useRef(null);
@@ -34,15 +37,23 @@ export default function TaskDetail() {
   const hasStarted = !!submission;
   const isRunning = submission?.status === 'in-progress';
   const completed = submission?.status === 'completed';
+  const blocked = submission?.status === 'blocked';
   const { formatted: timerDisplay } = useTimer(submission?.riddleOpenedAt, isRunning);
 
-  // ── Load task (does NOT start timer) ──────────────────
+  // Config-based reveal delays (in ms)
+  const hintDelayMs = (config?.hintRevealDelaySec || 180) * 1000;
+  const locDelayMs = (config?.locationRevealDelaySec || 360) * 1000;
+
+  // ── Load task + config ────────────────────────────────
   useEffect(() => {
-    api
-      .get(`/tasks/${id}`)
-      .then(({ data }) => {
-        setTask(data.task);
-        setSubmission(data.submission); // null if not started yet
+    Promise.all([
+      api.get(`/tasks/${id}`),
+      api.get('/config'),
+    ])
+      .then(([taskRes, configRes]) => {
+        setTask(taskRes.data.task);
+        setSubmission(taskRes.data.submission);
+        setConfig(configRes.data);
         setLoading(false);
       })
       .catch(() => {
@@ -50,6 +61,38 @@ export default function TaskDetail() {
         setLoading(false);
       });
   }, [id]);
+
+  // ── Auto-reveal timers ────────────────────────────────
+  useEffect(() => {
+    if (!submission?.riddleOpenedAt || completed) return;
+
+    const startTime = new Date(submission.riddleOpenedAt).getTime();
+
+    function checkReveals() {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= hintDelayMs) setHintRevealed(true);
+      if (elapsed >= locDelayMs) setLocationRevealed(true);
+    }
+
+    // Check immediately
+    checkReveals();
+
+    // Poll every second if either hasn't been revealed yet
+    const interval = setInterval(() => {
+      checkReveals();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [submission?.riddleOpenedAt, completed, hintDelayMs, locDelayMs]);
+
+  // ── Re-fetch task when location should be revealed (to get lat/lng from server) ──
+  useEffect(() => {
+    if (locationRevealed && task && !task.lat) {
+      api.get(`/tasks/${id}`).then(({ data }) => {
+        setTask(data.task);
+      }).catch(() => {});
+    }
+  }, [locationRevealed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Start Task → creates submission & starts timer ─────
   const handleStart = async () => {
@@ -91,6 +134,17 @@ export default function TaskDetail() {
     }
   };
 
+  // ── Countdown text helper ─────────────────────────────
+  function getCountdown(delayMs) {
+    if (!submission?.riddleOpenedAt) return '';
+    const elapsed = Date.now() - new Date(submission.riddleOpenedAt).getTime();
+    const remaining = Math.max(0, Math.ceil((delayMs - elapsed) / 1000));
+    if (remaining <= 0) return '';
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -125,10 +179,10 @@ export default function TaskDetail() {
         {/* Live timer – only show if task has been started */}
         {hasStarted && (
           <div className={`flex items-center gap-1.5 text-sm font-mono font-bold ${
-            completed ? 'text-neon-green' : 'text-neon-cyan neon-glow'
+            blocked ? 'text-red-400' : completed ? 'text-neon-green' : 'text-neon-cyan neon-glow'
           }`}>
             <Clock size={14} />
-            <span>{completed ? formatMs(submission.elapsedMs) : timerDisplay}</span>
+            <span>{completed ? formatMs(submission.elapsedMs) : blocked ? 'Blocked' : timerDisplay}</span>
           </div>
         )}
       </div>
@@ -188,7 +242,7 @@ export default function TaskDetail() {
           </motion.div>
         )}
 
-        {/* ── POST-START: Riddle + Hint + Camera ─────────── */}
+        {/* ── POST-START: Riddle + Hint + Location + Camera ── */}
         {hasStarted && (
           <>
             {/* Riddle card */}
@@ -204,7 +258,7 @@ export default function TaskDetail() {
               <p className="text-gray-300 text-sm leading-relaxed">{task.description}</p>
             </motion.div>
 
-            {/* Hint section */}
+            {/* Hint section — auto-reveals after hintRevealDelaySec */}
             {task.detailedHint && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -213,15 +267,16 @@ export default function TaskDetail() {
               >
                 <AnimatePresence mode="wait">
                   {!hintRevealed ? (
-                    <motion.button
-                      key="hint-btn"
+                    <motion.div
+                      key="hint-locked"
                       exit={{ opacity: 0, scale: 0.95 }}
-                      onClick={() => setHintRevealed(true)}
-                      className="w-full glass rounded-2xl p-4 flex items-center justify-center gap-2 text-sm font-semibold text-neon-pink neon-border-pink active:scale-[0.98] transition-transform"
+                      className="glass rounded-2xl p-4 neon-border-pink"
                     >
-                      <Eye size={16} />
-                      Reveal Hint
-                    </motion.button>
+                      <div className="flex items-center justify-center gap-2 text-sm font-semibold text-neon-pink">
+                        <Eye size={16} />
+                        <span>Hint unlocks in {getCountdown(hintDelayMs) || '...'}</span>
+                      </div>
+                    </motion.div>
                   ) : (
                     <motion.div
                       key="hint-content"
@@ -238,6 +293,44 @@ export default function TaskDetail() {
                 </AnimatePresence>
               </motion.div>
             )}
+
+            {/* Location reveal — shown after locationRevealDelaySec */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              {!locationRevealed ? (
+                <div className="glass rounded-2xl p-4 border border-white/5">
+                  <div className="flex items-center justify-center gap-2 text-sm font-semibold text-gray-500">
+                    <Navigation size={16} />
+                    <span>Location unlocks in {getCountdown(locDelayMs) || '...'}</span>
+                  </div>
+                </div>
+              ) : task.lat && task.lng ? (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${task.lat},${task.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="glass rounded-2xl p-4 neon-border flex items-center gap-3 active:scale-[0.98] transition-transform"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-neon-cyan/10 flex items-center justify-center flex-shrink-0">
+                    <Navigation className="text-neon-cyan" size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-neon-cyan uppercase tracking-widest">Location Revealed!</p>
+                    <p className="text-sm text-gray-400 mt-0.5">Tap to open in Maps</p>
+                  </div>
+                </a>
+              ) : (
+                <div className="glass rounded-2xl p-4 border border-neon-cyan/20">
+                  <div className="flex items-center justify-center gap-2 text-sm font-semibold text-neon-cyan">
+                    <Navigation size={16} />
+                    <span>Location revealed — no coordinates set</span>
+                  </div>
+                </div>
+              )}
+            </motion.div>
 
             {/* Photo upload / preview */}
             <motion.div
@@ -267,7 +360,17 @@ export default function TaskDetail() {
                 </div>
               )}
 
-              {!completed && (
+              {blocked && (
+                <div className="glass rounded-2xl p-5 border border-red-500/30 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <span className="text-red-400 text-xl font-bold">✕</span>
+                  </div>
+                  <p className="text-red-400 font-bold text-sm mb-1">Submission Blocked</p>
+                  <p className="text-gray-500 text-xs">Your photo was blocked by an admin. You cannot re-upload for this task.</p>
+                </div>
+              )}
+
+              {!completed && !blocked && (
                 <>
                   <input
                     ref={fileRef}
@@ -289,7 +392,7 @@ export default function TaskDetail() {
                 </>
               )}
 
-              {completed && (
+              {(completed || blocked) && (
                 <motion.button
                   whileTap={{ scale: 0.97 }}
                   onClick={() => navigate('/')}

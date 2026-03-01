@@ -17,6 +17,11 @@ router.get('/', async (_req, res, next) => {
       mapZoom: config.mapZoom,
       allowRegistration: config.allowRegistration,
       leaderboardMode: config.leaderboardMode,
+      hintRevealDelaySec: config.hintRevealDelaySec,
+      locationRevealDelaySec: config.locationRevealDelaySec,
+      boundaryRadiusMeters: config.boundaryRadiusMeters,
+      gameEndTime: config.gameEndTime,
+      gameDurationMinutes: config.gameDurationMinutes,
     });
   } catch (err) {
     next(err);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Clock, CheckCircle2, Loader2 } from 'lucide-react';
+import { Trophy, Clock, CheckCircle2, Loader2, Star } from 'lucide-react';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
@@ -96,12 +96,16 @@ export default function Leaderboard() {
 
                 {/* Stats */}
                 <div className="flex-shrink-0 text-right space-y-0.5">
-                  <div className="flex items-center gap-1 text-xs text-neon-green font-semibold justify-end">
-                    <CheckCircle2 size={12} />
+                  <div className="flex items-center gap-1 text-xs text-neon-gold font-bold justify-end">
+                    <Star size={12} />
+                    {entry.totalPoints} pts
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] text-neon-green font-semibold justify-end">
+                    <CheckCircle2 size={10} />
                     {entry.completedTasks} done
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-gray-500 justify-end">
-                    <Clock size={11} />
+                  <div className="flex items-center gap-1 text-[10px] text-gray-500 justify-end">
+                    <Clock size={10} />
                     {formatMs(entry.totalElapsedMs)}
                   </div>
                 </div>

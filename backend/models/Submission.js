@@ -27,6 +27,11 @@ const submissionSchema = new mongoose.Schema(
     blockedAt: { type: Date, default: null },
     blockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', default: null },
     blockReason: { type: String, default: '' },
+
+    // ── Admin photo scoring ─────────────────────────────────
+    photoPoints: { type: Number, default: null },  // null = not yet scored
+    scoredAt: { type: Date, default: null },
+    scoredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', default: null },
   },
   { timestamps: true }
 );

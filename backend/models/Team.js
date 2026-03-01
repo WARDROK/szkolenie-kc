@@ -33,6 +33,10 @@ const teamSchema = new mongoose.Schema(
     // ── Each team gets a unique shuffled task order ──────
     // Array of Task ObjectIds in the order this team should complete them
     taskQueue: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
+
+    // ── Profile edit tracking ────────────────────────────
+    // Teams can change name/password once. After that, this is true.
+    profileEdited: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
