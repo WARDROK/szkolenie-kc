@@ -64,7 +64,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ team, login, register, updateProfile, logout, loading, isAuthenticated: !!team }}>
+    <AuthContext.Provider value={{ team, login, register, updateProfile, updateName, logout, loading, isAuthenticated: !!team }}>
       {children}
     </AuthContext.Provider>
   );
