@@ -13,7 +13,7 @@ import { useAuth } from '../context/AuthContext';
 
 const teamTabs = [
   { to: '/', icon: Target, label: 'Tasks' },
-  { to: '/sidequests', icon: Sparkles, label: 'Side Q' },
+  { to: '/sidequests', icon: Sparkles, label: 'Side Quests' },
   { to: '/feed', icon: Camera, label: 'Feed' },
   { to: '/leaderboard', icon: Trophy, label: 'Ranks' },
   { to: '/profile', icon: UserCog, label: 'Profile' },
@@ -22,8 +22,6 @@ const teamTabs = [
 const adminTabs = [
   { to: '/admin', icon: Shield, label: 'Admin' },
   { to: '/admin/leaderboard', icon: Trophy, label: 'Ranks' },
-  { to: '/gallery', icon: Images, label: 'Gallery' },
-  { to: '/leaderboard', icon: Trophy, label: 'Ranks' },
 ];
 
 export default function BottomNav() {
