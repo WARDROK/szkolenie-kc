@@ -165,13 +165,13 @@ router.put('/name', authMiddleware, async (req, res, next) => {
     const team = await Team.findById(req.teamId);
     if (!team) return res.status(404).json({ error: 'Team not found' });
 
-  team.name = trimmed;
-  await team.save();
+    team.name = trimmed;
+    await team.save();
 
-  // issue a refreshed token with the new name embedded
-  const token = signToken(team);
+    // issue a refreshed token with the new name embedded
+    const token = signToken(team);
 
-  res.json({ token, team: { id: team._id, name: team.name, avatarColor: team.avatarColor, role: team.role } });
+    res.json({ token, team: { id: team._id, name: team.name, avatarColor: team.avatarColor, role: team.role } });
   } catch (err) {
     next(err);
   }
