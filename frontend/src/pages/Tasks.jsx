@@ -5,7 +5,6 @@ import { MapPin, CheckCircle2, Clock, Loader2, List, Map as MapIcon } from 'luci
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import TaskMap from '../components/TaskMap';
-import ErrorBoundary from '../components/ErrorBoundary';
 
 const statusColors = {
   'not-started': 'border-white/5',
